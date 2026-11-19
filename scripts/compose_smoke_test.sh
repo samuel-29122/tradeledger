@@ -105,7 +105,14 @@ for _ in $(seq 1 30); do curl -fsS "$BASE/health/ready" >/dev/null 2>&1 && break
 curl -fsS -H "Authorization: Bearer $API_TOKEN" "$BASE/api/v1/trades" | grep '"total": *1' >/dev/null || fail "data after restart"
 
 step "PostgreSQL is not published on the host"
-if docker compose port db 5432 >/dev/null 2>&1; then fail "db port is published"; fi
+# "docker compose port" is NOT a reliable test on its own: the postgres image
+# EXPOSEs 5432, so for an unpublished port Compose prints ":0" and exits 0.
+# Check the container's actual host port bindings instead (must be empty),
+# and that Compose reports no real host port either.
+DB_BINDINGS=$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$(docker compose ps -q db)")
+case "$DB_BINDINGS" in "{}"|"null") ;; *) fail "db has host port bindings: $DB_BINDINGS";; esac
+DB_PORT=$(docker compose port db 5432 2>/dev/null || true)
+case "$DB_PORT" in ""|*:0) ;; *) fail "db port is published at $DB_PORT";; esac
 
 step "the app runs as a non-root user"
 [ "$(docker compose exec -T app id -u)" = 10001 ] || fail "container user is not 10001"

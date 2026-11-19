@@ -29,6 +29,12 @@ def test_javascript_unit_tests_pass():
         pytest.skip("Node.js is not installed")
     files = sorted(str(path) for path in JS_TESTS.glob("*.test.js"))
     assert files, "no JavaScript test files found"
-    result = subprocess.run([node, "--test", *files], capture_output=True, text=True, timeout=120)
+    # Ask for the TAP reporter explicitly. Node 22 uses TAP by default when the
+    # output is not a terminal, but Node 23+ (the default Node on GitHub's
+    # ubuntu-latest runners) switched to the "spec" reporter, which prints
+    # "ℹ fail 0" instead of "# fail 0". TAP also carries no colour codes.
+    result = subprocess.run(
+        [node, "--test", "--test-reporter=tap", *files], capture_output=True, text=True, timeout=120
+    )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "# fail 0" in result.stdout

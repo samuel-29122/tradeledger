@@ -183,3 +183,15 @@ Results from the author's runs are in [`docs/TRADELEDGER_FINAL_QA_REPORT.md`](do
 ## Licence
 
 No licence file has been chosen yet. Until one is added, the code is visible but not licensed for reuse. Chart.js and `@kurkle/color` are MIT-licensed; see `tradeledger/static/vendor/chartjs/`.
+## What I Learnt
+
+Working on TradeLedger has helped me develop my understanding of software development and how the different parts of a web application work together.
+
+- **Python and Flask:** I explored how Python handles application logic and how Flask connects the browser to the backend.
+- **SQL and databases:** I learnt how trading records are stored using SQLite and how PostgreSQL supports more advanced database environments.
+- **Financial calculations:** I explored how Python's `Decimal` type supports accurate profit and loss calculations.
+- **Security:** I developed an understanding of user accounts, password protection and keeping different users' trading data separate.
+- **Git and GitHub:** I learnt how to track changes, upload code and maintain a public repository.
+- **Testing and debugging:** I gained practical experience investigating GitHub Actions failures and updating the project until all eight automated checks passed.
+
+TradeLedger was developed with AI assistance. I am continuing to strengthen my understanding of the code, its architecture and how to maintain it independently.

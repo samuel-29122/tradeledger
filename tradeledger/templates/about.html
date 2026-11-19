@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}About{% endblock %}
+{% block heading %}About TradeLedger{% endblock %}
+{% block description %}What this application does, how it calculates, and how it is built.{% endblock %}
+
+{% block content %}
+<div class="prose-grid">
+    <section class="card prose" aria-labelledby="what-title">
+        <h2 id="what-title">What it does</h2>
+        <p>TradeLedger is a trading journal. You record each trade's plan (entry, stop-loss, optional target, size)
+           and, when it finishes, its exit. It then calculates the result of every closed trade and the performance
+           of the whole journal.</p>
+        <h3>How results are calculated</h3>
+        <ul>
+            <li><strong>Net P&amp;L</strong> = price move × position size × contract multiplier − fees, in the instrument's quote currency.</li>
+            <li><strong>Realised R</strong> = net P&amp;L ÷ initial risk, where initial risk is the money lost if the stop is hit.</li>
+            <li>A trade is a <strong>win</strong> if net P&amp;L is above zero, a <strong>loss</strong> if below, and <strong>breakeven</strong> only at exactly zero.</li>
+            <li>Money in different currencies is never added together. R-multiples can be, because they are currency-neutral.</li>
+            <li>Every calculation uses exact decimal arithmetic in Python. The browser never calculates results.</li>
+        </ul>
+    </section>
+
+    <section class="card prose" aria-labelledby="security-title">
+        <h2 id="security-title">Security and data</h2>
+        <p>Each person signs in to their <strong>own account</strong> and sees only their own instruments, trades and analytics.</p>
+        <ul>
+            <li>Passwords are stored only as Argon2id hashes. Repeated failed sign-ins are slowed down.</li>
+            <li>Every page with trading data needs a signed-in session; the JSON API needs a personal API token, which you can revoke at any time.</li>
+            <li>Every form is protected against cross-site request forgery, and pages may only load this site's own scripts and styles. The one exception is the analytics page, which may also load the pinned Chart.js file.</li>
+            <li>The server only answers requests addressed to the host names it is configured for (<code>localhost</code> and <code>127.0.0.1</code> by default), so another website cannot reach it through your browser.</li>
+            <li>Data is stored in SQLite on your own computer, or in PostgreSQL when run with Docker Compose or on a server.</li>
+        </ul>
+    </section>
+
+    <section class="card prose" aria-labelledby="build-title">
+        <h2 id="build-title">Build progress</h2>
+        <ol class="roadmap" role="list">
+            {% for item in roadmap %}
+            <li class="roadmap-item status-{{ item.status | lower }}">
+                <span class="phase-number">Phase {{ item.phase }}</span>
+                <span class="phase-title">{{ item.title }}</span>
+                <span class="phase-status">{{ item.status }}</span>
+            </li>
+            {% endfor %}
+        </ol>
+    </section>
+
+    <section class="card prose" aria-labelledby="tech-title">
+        <h2 id="tech-title">Technology</h2>
+        <ul>
+            <li>Python, Flask and Jinja2 templates, rendered on the server</li>
+            <li>SQLite with constraints, triggers and versioned migrations</li>
+            <li>HTML, CSS and a small amount of vanilla JavaScript for progressive enhancement</li>
+            <li>Chart.js {{ config.CHART_JS_VERSION }} for the analytics charts (drawing only; every figure is calculated in Python)</li>
+            <li>A versioned JSON API documented with OpenAPI 3.1 (<a class="text-link" href="{{ url_for('api.openapi_spec') }}">specification</a>)</li>
+            <li>pytest, with browser tests in Playwright where available</li>
+        </ul>
+        <p class="muted">Running in <strong>{{ config.CONFIG_NAME }}</strong> mode · version {{ config.APP_VERSION }}</p>
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% import "macros/forms.html" as f %}
+{% import "macros/ui.html" as ui %}
+
+{% block title %}Instruments{% endblock %}
+{% block heading %}Instruments{% endblock %}
+{% block description %}The markets you trade, and how a price move turns into money for each.{% endblock %}
+
+{% block content %}
+<div class="notice notice--warning">
+    <p><strong>Check every specification against your broker's documentation.</strong>
+       TradeLedger cannot know your broker's contract sizes. A wrong contract multiplier makes every
+       money figure for that instrument wrong. The sample instruments use illustrative values only.</p>
+</div>
+
+<section aria-labelledby="list-title">
+    <div class="section-heading"><h2 id="list-title">Recorded instruments</h2></div>
+    {% if instruments %}
+    <div class="table-wrap" role="region" aria-label="Instruments table" tabindex="0">
+        <table class="table instrument-table">
+            <caption class="visually-hidden">Instruments, sorted by symbol</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Symbol</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Asset class</th>
+                    <th scope="col" class="num-col">Price increment</th>
+                    <th scope="col" class="num-col">Contract multiplier</th>
+                    <th scope="col">Quote currency</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i in instruments %}
+                <tr>
+                    <td data-label="Symbol"><strong>{{ i.symbol }}</strong></td>
+                    <td data-label="Name">{{ i.name }}</td>
+                    <td data-label="Asset class">{{ i.asset_class | title }}</td>
+                    <td data-label="Price increment" class="num-col">{{ i.price_increment | plain }}</td>
+                    <td data-label="Contract multiplier" class="num-col">{{ i.contract_multiplier | plain }}</td>
+                    <td data-label="Quote currency">{{ i.quote_currency }}</td>
+                    <td class="actions-col">
+                        <div class="row-actions">
+                            <a class="button button--small button--secondary" href="{{ url_for('main.journal', instrument_id=i.id) }}">Trades<span class="visually-hidden"> on {{ i.symbol }}</span></a>
+                            <a class="button button--small button--secondary" href="{{ url_for('main.new_trade', instrument_id=i.id) }}">Add trade<span class="visually-hidden"> on {{ i.symbol }}</span></a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {{ ui.empty_state("No instruments yet", "Add the first market you trade using the form below.") }}
+    {% endif %}
+</section>
+
+<div class="split">
+    <section class="card form-section" aria-labelledby="add-title">
+        <h2 class="form-section__title" id="add-title">Add an instrument</h2>
+        {{ f.error_summary(errors, labels) }}
+        <form method="post" action="{{ url_for('main.instruments') }}" novalidate data-submit-once>
+            {{ csrf_field() }}
+            <div class="form-grid">
+                {{ f.text("symbol", "Symbol", values, errors, labels, required=True, maxlength=20,
+                          hint="Letters, digits or underscores, e.g. US30. Stored in capitals.") }}
+                {{ f.text("name", "Name", values, errors, labels, required=True, maxlength=100,
+                          hint="A readable name, e.g. Wall Street 30 CFD.") }}
+                {{ f.select("asset_class", "Asset class", values, errors, labels,
+                            asset_class_options,
+                            required=True, blank="Choose an asset class") }}
+                {{ f.text("quote_currency", "Quote currency", values, errors, labels, required=True, maxlength=3,
+                          hint="The currency P&L is paid in, e.g. USD.") }}
+                {{ f.text("price_increment", "Price increment", values, errors, labels, inputmode="decimal", required=True,
+                          hint="The smallest price step, e.g. 0.00001 or 1.") }}
+                {{ f.text("contract_multiplier", "Contract multiplier", values, errors, labels, inputmode="decimal", required=True,
+                          hint="Money per 1.0 price move per 1 unit of position size. See the explanation.") }}
+            </div>
+            <div class="form-actions">
+                <button class="button button--primary" type="submit" data-busy-label="Adding…">Add instrument</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="card explainer" aria-labelledby="explain-title">
+        <h2 id="explain-title">What is a contract multiplier?</h2>
+        <p>It converts a price move into money:</p>
+        <p class="formula">P&amp;L = price move × position size × contract multiplier</p>
+        <p>If you record EUR/USD position size in standard lots and your broker's lot is 100,000 euros, a move from
+           1.08500 to 1.08900 (0.004) on 1 lot is 0.004 × 1 × 100,000 = <strong>400 USD</strong>.</p>
+        <p>If you record size in single units instead, the multiplier is 1 and the size is 100,000. Either works,
+           as long as size and multiplier use the <strong>same definition</strong>.</p>
+        <p class="muted">Instruments cannot be edited yet: changing a multiplier would silently change the result of every past trade on it.</p>
+    </section>
+</div>
+{% endblock %}

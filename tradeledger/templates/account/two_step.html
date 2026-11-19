@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% import "macros/forms.html" as f %}
+
+{% block title %}Two-step verification{% endblock %}
+{% block heading %}Two-step verification{% endblock %}
+{% block description %}Sign in with your password and a code from your phone.{% endblock %}
+
+{% block content %}
+<p><a href="{{ url_for('main.account') }}">← Back to your account</a></p>
+
+{% if new_codes %}
+<section class="card form-section" aria-labelledby="codes-title">
+    <div class="notice notice--warning" role="status">
+        <p><strong>Save these recovery codes now. They will not be shown again.</strong></p>
+    </div>
+    <h2 class="form-section__title" id="codes-title">Your recovery codes</h2>
+    <p>Each code works once, instead of a code from your app, if you lose your phone.
+       Keep them somewhere safe and separate from your phone, for example in a password manager or printed at home.</p>
+    <ul class="recovery-codes" aria-label="Recovery codes">
+        {% for code in new_codes %}<li><code>{{ code }}</code></li>{% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+{% if enabled %}
+<section class="card form-section" aria-labelledby="status-title">
+    <h2 class="form-section__title" id="status-title">Two-step verification is on</h2>
+    <dl class="detail-list">
+        <div><dt>Switched on</dt><dd>{{ enabled_at | when }}</dd></div>
+        <div><dt>Unused recovery codes</dt><dd>{{ unused_codes }}</dd></div>
+    </dl>
+    {% if unused_codes < 3 %}
+    <div class="notice notice--warning" role="status"><p>You have few recovery codes left. Create a new set below.</p></div>
+    {% endif %}
+</section>
+
+<section class="card form-section" aria-labelledby="new-codes-title">
+    <h2 class="form-section__title" id="new-codes-title">New recovery codes</h2>
+    <p>Creates ten new codes and cancels every old one.</p>
+    {{ f.error_summary(errors if request.endpoint == "main.two_step_new_codes" else {}, labels) }}
+    <form method="post" action="{{ url_for('main.two_step_new_codes') }}" novalidate data-submit-once>
+        {{ csrf_field() }}
+        <input type="email" name="username" value="{{ g.user.email }}" autocomplete="username" hidden>
+        <div class="form-stack">
+            {{ f.text("current_password", "Current password", {}, errors if request.endpoint == "main.two_step_new_codes" else {},
+                      labels, type="password", required=True, maxlength=128, autocomplete="current-password") }}
+        </div>
+        <div class="form-actions">
+            <button class="button button--secondary" type="submit">Create new recovery codes</button>
+        </div>
+    </form>
+</section>
+
+<section class="card form-section" aria-labelledby="disable-title">
+    <h2 class="form-section__title" id="disable-title">Turn off two-step verification</h2>
+    <p>Signing in will then need only your password.</p>
+    {{ f.error_summary(errors if request.endpoint == "main.two_step_disable" else {}, labels) }}
+    <form method="post" action="{{ url_for('main.two_step_disable') }}" novalidate data-submit-once>
+        {{ csrf_field() }}
+        <input type="email" name="username" value="{{ g.user.email }}" autocomplete="username" hidden>
+        <div class="form-stack">
+            {{ f.text("current_password", "Current password", {}, errors if request.endpoint == "main.two_step_disable" else {},
+                      labels, type="password", required=True, maxlength=128, autocomplete="current-password") }}
+            {{ f.text("code", "Code", {}, errors if request.endpoint == "main.two_step_disable" else {}, labels, required=True,
+                      maxlength=20, autocomplete="one-time-code", hint="From your app, or an unused recovery code.") }}
+        </div>
+        <div class="form-actions">
+            <button class="button button--danger" type="submit">Turn off</button>
+        </div>
+    </form>
+</section>
+{% else %}
+<section class="card form-section" aria-labelledby="setup-title">
+    <h2 class="form-section__title" id="setup-title">Set up two-step verification</h2>
+    <ol class="steps">
+        <li>Install an authenticator app on your phone, for example Google Authenticator, Microsoft Authenticator, 1Password or Aegis.</li>
+        <li>In the app, add an account by entering this setup key (time-based):
+            <p><code class="setup-key" aria-label="Setup key">{{ secret_grouped }}</code></p>
+            <details>
+                <summary>Using a password manager on this device instead?</summary>
+                <p>Some apps accept this link: <code class="setup-uri">{{ uri }}</code></p>
+            </details>
+        </li>
+        <li>Enter your current password and the 6-digit code the app now shows.</li>
+    </ol>
+    <p class="muted">The setup key is a secret: anyone who has it can create your codes. It is shown only on this page.</p>
+    {{ f.error_summary(errors, labels) }}
+    <form method="post" action="{{ url_for('main.two_step_enable') }}" novalidate data-submit-once>
+        {{ csrf_field() }}
+        <input type="email" name="username" value="{{ g.user.email }}" autocomplete="username" hidden>
+        <div class="form-stack">
+            {{ f.text("current_password", "Current password", {}, errors, labels, type="password", required=True,
+                      maxlength=128, autocomplete="current-password") }}
+            {{ f.text("code", "Code", {}, errors, labels, required=True, maxlength=10, autocomplete="one-time-code",
+                      hint="6 digits from your app.") }}
+        </div>
+        <div class="form-actions">
+            <button class="button button--primary" type="submit" data-busy-label="Checking…">Turn on two-step verification</button>
+        </div>
+    </form>
+</section>
+{% endif %}
+{% endblock %}

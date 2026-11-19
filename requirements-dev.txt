@@ -1,0 +1,17 @@
+# Development, testing and quality tools (Phase 7).
+#   pip install -r requirements-dev.txt -c constraints.txt
+-r requirements.txt
+
+# Tests
+pytest==9.1.1
+jsonschema==4.26.0          # validates API responses against the OpenAPI schemas
+
+# Coverage (pytest-cov 7.x needs coverage >= 7.10.6)
+pytest-cov==7.1.0
+coverage==7.17.0
+
+# Lint and format
+ruff==0.16.9
+
+# Known-vulnerability check for the pinned dependencies
+pip-audit==2.10.0

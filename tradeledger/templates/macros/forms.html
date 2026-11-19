@@ -1,0 +1,109 @@
+{# Accessible form fields. Every field:
+     * has a visible <label> tied to the input by id;
+     * links its hint and error with aria-describedby, so screen readers
+       read them when the field is focused;
+     * sets aria-invalid="true" when it has an error;
+     * shows the error text next to the field AND in the summary at the top.
+   Values always come from `values`, so a failed submission keeps what the
+   user typed. Jinja escapes every value automatically. #}
+
+{% macro describedby(name, hint, errors) -%}
+    {%- set ids = [] -%}
+    {%- if hint %}{% set _ = ids.append("field-" ~ name ~ "-hint") %}{% endif -%}
+    {%- if errors.get(name) %}{% set _ = ids.append("field-" ~ name ~ "-error") %}{% endif -%}
+    {%- if ids %} aria-describedby="{{ ids | join(' ') }}"{% endif -%}
+    {%- if errors.get(name) %} aria-invalid="true"{% endif -%}
+{%- endmacro %}
+
+{% macro messages(name, hint, errors, labels) -%}
+    {% if hint %}<p class="field__hint" id="field-{{ name }}-hint">{{ hint }}</p>{% endif %}
+    {% if errors.get(name) %}
+        <p class="field__error" id="field-{{ name }}-error">
+            <span class="visually-hidden">Error:</span> {{ labels.get(name, name) }} {{ errors[name] }}
+        </p>
+    {% endif %}
+{%- endmacro %}
+
+{% macro text(name, label, values, errors, labels, hint=None, type="text", inputmode=None,
+              required=False, placeholder=None, maxlength=None, list=None, step=None, wide=False,
+              autocomplete=None) -%}
+    <div class="field{% if errors.get(name) %} field--error{% endif %}{% if wide %} field--wide{% endif %}">
+        <label class="field__label" for="field-{{ name }}">
+            {{ label }}{% if not required %} <span class="field__optional">(optional)</span>{% endif %}
+        </label>
+        <input class="input" id="field-{{ name }}" name="{{ name }}" type="{{ type }}"
+               {%- if type != "password" %} value="{{ values.get(name, '') }}"{% endif %}
+               {%- if inputmode %} inputmode="{{ inputmode }}"{% endif %}
+               {%- if placeholder %} placeholder="{{ placeholder }}"{% endif %}
+               {%- if maxlength %} maxlength="{{ maxlength }}"{% endif %}
+               {%- if list %} list="{{ list }}"{% endif %}
+               {%- if step %} step="{{ step }}"{% endif %}
+               {%- if required %} required{% endif %}
+               {%- if inputmode == "decimal" %} autocomplete="off" spellcheck="false"{% endif %}
+               {%- if autocomplete %} autocomplete="{{ autocomplete }}"{% endif %}
+               {%- if type in ("email", "password") %} spellcheck="false" autocapitalize="none"{% endif %}
+               {{- describedby(name, hint, errors) }}>
+        {{ messages(name, hint, errors, labels) }}
+    </div>
+{%- endmacro %}
+
+{% macro select(name, label, values, errors, labels, options, hint=None, required=False, blank=None) -%}
+    <div class="field{% if errors.get(name) %} field--error{% endif %}">
+        <label class="field__label" for="field-{{ name }}">
+            {{ label }}{% if not required %} <span class="field__optional">(optional)</span>{% endif %}
+        </label>
+        <select class="input select" id="field-{{ name }}" name="{{ name }}"
+                {%- if required %} required{% endif %}{{ describedby(name, hint, errors) }}>
+            {% if blank is not none %}<option value="">{{ blank }}</option>{% endif %}
+            {% for value, text in options %}
+            <option value="{{ value }}" {% if values.get(name, '') | string == value | string %}selected{% endif %}>{{ text }}</option>
+            {% endfor %}
+        </select>
+        {{ messages(name, hint, errors, labels) }}
+    </div>
+{%- endmacro %}
+
+{# A group of radio buttons styled as a segmented control. #}
+{% macro choice(name, legend, values, errors, labels, options, hint=None, data_attr=None) -%}
+    <fieldset class="field choice{% if errors.get(name) %} field--error{% endif %}"
+              {%- if data_attr %} {{ data_attr }}{% endif %}{{ describedby(name, hint, errors) }}>
+        <legend class="field__label">{{ legend }}</legend>
+        <div class="choice__options">
+            {% for value, text in options %}
+            <label class="choice__option">
+                <input type="radio" name="{{ name }}" value="{{ value }}"
+                       id="field-{{ name }}{% if not loop.first %}-{{ value | lower }}{% endif %}"
+                       {% if values.get(name) == value %}checked{% endif %}>
+                <span>{{ text }}</span>
+            </label>
+            {% endfor %}
+        </div>
+        {{ messages(name, hint, errors, labels) }}
+    </fieldset>
+{%- endmacro %}
+
+{% macro textarea(name, label, values, errors, labels, hint=None, maxlength=None, rows=5) -%}
+    <div class="field field--wide{% if errors.get(name) %} field--error{% endif %}">
+        <label class="field__label" for="field-{{ name }}">{{ label }} <span class="field__optional">(optional)</span></label>
+        <textarea class="input textarea" id="field-{{ name }}" name="{{ name }}" rows="{{ rows }}"
+                  {%- if maxlength %} maxlength="{{ maxlength }}"{% endif %}
+                  {{- describedby(name, hint, errors) }}>{{ values.get(name, '') }}</textarea>
+        {{ messages(name, hint, errors, labels) }}
+    </div>
+{%- endmacro %}
+
+{# List of every problem, linked to the fields. Focused by app.js on load. #}
+{% macro error_summary(errors, labels) -%}
+    {% if errors %}
+    <div class="error-summary" role="alert" tabindex="-1" data-error-summary aria-labelledby="error-summary-title">
+        <h2 class="error-summary__title" id="error-summary-title">
+            {{ errors | length }} {{ "problem" if errors | length == 1 else "problems" }} to fix before saving
+        </h2>
+        <ul>
+            {% for name, message in errors.items() %}
+            <li><a href="#field-{{ name }}">{{ labels.get(name, name) }} {{ message }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+{%- endmacro %}

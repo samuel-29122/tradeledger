@@ -1,0 +1,277 @@
+/* ==========================================================================
+   Analytics dashboard (Phase 6)
+   Uses only the design tokens from base.css, so the dashboard matches the
+   rest of TradeLedger and changes with it.
+   ========================================================================== */
+
+/* ---------- Filters ---------- */
+.dash-filters__title {
+    font-size: var(--text-base);
+}
+
+.filter-chip {
+    display: inline-block;
+    margin: 0 var(--space-1) var(--space-1) 0;
+    padding: 0.1rem var(--space-2);
+    border: 1px solid var(--color-border-strong);
+    border-radius: 999px;
+    color: var(--color-text);
+}
+
+/* ---------- KPI cards ---------- */
+/* A <dl> of cards: auto-fit makes as many columns as fit (two on a phone,
+   four at 1024px), and wide screens get exactly six (below). */
+.kpi-grid {
+    display: grid;
+    /* 9.5rem lets two cards sit side by side on a 375px phone. */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+    gap: var(--space-3);
+    margin: 0;
+}
+
+/* Wide screens: exactly six columns, so the twelve cards form two even rows. */
+@media (min-width: 80rem) {
+    .kpi-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
+
+.kpi {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-top: 3px solid var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+}
+
+.kpi--positive {
+    border-top-color: var(--color-positive);
+}
+
+.kpi--negative {
+    border-top-color: var(--color-negative);
+}
+
+.kpi__label {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
+.kpi__value {
+    margin: 0;
+    font-size: var(--text-xl);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.kpi--positive .kpi__value {
+    color: var(--color-positive);
+}
+
+.kpi--negative .kpi__value {
+    color: var(--color-negative);
+}
+
+.kpi__note {
+    margin: 0;
+    color: var(--color-text-subtle);
+    font-size: var(--text-xs);
+}
+
+/* ---------- Chart cards ---------- */
+.dash-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+}
+
+@media (min-width: 72rem) {
+    .dash-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* The cumulative R chart spans the full width; drawdown sits below. */
+    .dash-grid--time {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.chart-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-width: 0;
+    margin: 0;
+    padding: var(--space-5);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+}
+
+.chart-card__head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.chart-card__title {
+    font-size: var(--text-base);
+}
+
+.chart-card__explain {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+/* Chart.js sizes the canvas to its parent when maintainAspectRatio is off,
+   so the parent needs a definite height. position: relative is required by
+   Chart.js's responsive resizing. */
+.chart-card__canvas {
+    position: relative;
+    height: 16rem;
+    min-width: 0;
+}
+
+.chart-card__canvas--tall {
+    height: 20rem;
+}
+
+@media (max-width: 40rem) {
+    .chart-card {
+        padding: var(--space-4);
+    }
+
+    .chart-card__canvas {
+        height: 14rem;
+    }
+
+    .chart-card__canvas--tall {
+        height: 16rem;
+    }
+}
+
+/* Without JavaScript there is nothing to draw: hide the empty boxes. */
+html:not(.js) .chart-card__canvas {
+    display: none;
+}
+
+.chart-card__canvas.is-unavailable {
+    height: auto;
+}
+
+.chart-card__fallback {
+    padding: var(--space-3) var(--space-4);
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.chart-card__summary {
+    font-size: var(--text-sm);
+}
+
+.chart-card__table-link {
+    font-size: var(--text-sm);
+}
+
+/* ---------- Tables ---------- */
+.data-table {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-5);
+}
+
+.data-table__title {
+    font-size: var(--text-base);
+}
+
+.table tbody th {
+    text-align: left;
+    font-weight: 600;
+}
+
+/* components.css removes the last row's border from <td> only; row
+   headers (<th scope="row">) need the same. */
+.table tbody tr:last-child th {
+    border-bottom: 0;
+}
+
+/* Card layout (below 64rem, see components.css): row headers become a
+   labelled line like every other cell. */
+@media (max-width: 63.99rem) {
+    .table tbody th {
+        display: flex;
+        justify-content: space-between;
+        gap: var(--space-4);
+        width: 100%;
+        padding: var(--space-2) 0;
+        border-bottom: 1px solid var(--color-border);
+        white-space: normal;
+        text-align: right;
+    }
+
+    .table tbody th[data-label]::before {
+        content: attr(data-label);
+        color: var(--color-text-muted);
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .table tbody tr:last-child th {
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .table .empty-row {
+        justify-content: flex-start;
+    }
+}
+
+.empty-row {
+    font-style: italic;
+}
+
+.sample-tag {
+    display: inline-block;
+    margin-left: var(--space-1);
+    padding: 0 var(--space-2);
+    border: 1px solid var(--color-border-strong);
+    border-radius: 999px;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.table .is-max-drawdown td,
+.table .is-max-drawdown th {
+    background: var(--color-negative-soft);
+}
+
+/* ---------- Data quality ---------- */
+.data-quality {
+    font-size: var(--text-sm);
+}
+
+/* Phase 8.5 polish: on wide screens the breakdown tables (eleven columns)
+   were a little wider than their card at 1440px, so the last column sat
+   behind a scroll bar. Column headings may now wrap onto two lines and the
+   "Small sample" tag sits under the group name, which lets the full table
+   fit from about 1280px upwards. Narrower screens keep the card layout. */
+@media (min-width: 64rem) {
+    .data-table .table thead th {
+        white-space: normal;
+        vertical-align: bottom;
+    }
+
+    .data-table .table tbody th .sample-tag {
+        display: block;
+        width: fit-content;
+        margin: var(--space-1) 0 0;
+    }
+}

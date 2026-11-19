@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% import "macros/forms.html" as f %}
+
+{% set editing = mode == "edit" %}
+{% block title %}{% if editing %}Edit trade #{{ trade.id }}{% else %}Add trade{% endif %}{% endblock %}
+{% block heading %}{% if editing %}Edit trade #{{ trade.id }}{% else %}Add a trade{% endif %}{% endblock %}
+{% block description %}{% if editing %}{{ trade.symbol }} · {{ trade.direction | title }} · entered {{ trade.trade_date | when }}{% else %}Record the plan and, if it has finished, the outcome. All times are UTC.{% endif %}{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/trade-form.js') }}" defer></script>{% endblock %}
+
+{% block content %}
+{% if not instruments %}
+<div class="notice notice--warning">
+    <p>There are no instruments yet. A trade must belong to an instrument, so
+       <a class="text-link" href="{{ url_for('main.instruments') }}">add an instrument</a> first.</p>
+</div>
+{% endif %}
+
+{{ f.error_summary(errors, labels) }}
+
+{% if editing and is_legacy %}
+<div class="notice notice--info">
+    <p><strong>Exit time not recorded.</strong> This trade was closed before TradeLedger recorded exit times.
+       You can leave the exit time blank to keep it unknown, or enter the real time if you know it.
+       TradeLedger never invents one.</p>
+</div>
+{% endif %}
+
+<form class="trade-form" method="post" novalidate data-trade-form data-submit-once
+      {% if editing and is_legacy %}data-legacy-close{% endif %}
+      action="{{ url_for('main.edit_trade', trade_id=trade.id) if editing else url_for('main.new_trade') }}">
+    {{ csrf_field() }}
+    {% if editing %}<input type="hidden" name="next" value="{{ back }}">{% endif %}
+
+    <section class="card form-section" aria-labelledby="section-instrument">
+        <h2 class="form-section__title" id="section-instrument">Instrument and status</h2>
+        <div class="form-grid">
+            {{ f.select("instrument_id", "Instrument", values, errors, labels,
+                        instrument_options,
+                        required=True, blank="Choose an instrument",
+                        hint="The instrument defines the contract multiplier and quote currency.") }}
+            {{ f.choice("direction", "Direction", values, errors, labels, [("LONG", "Long"), ("SHORT", "Short")]) }}
+            {{ f.choice("status", "Status", values, errors, labels, [("OPEN", "Open"), ("CLOSED", "Closed")],
+                        hint="Open: still running. Closed: finished, with an exit price and time.",
+                        data_attr="data-status-control") }}
+        </div>
+    </section>
+
+    <section class="card form-section" aria-labelledby="section-entry">
+        <h2 class="form-section__title" id="section-entry">Entry and plan</h2>
+        <div class="form-grid">
+            {{ f.text("trade_date", "Entry time (UTC)", values, errors, labels, type="datetime-local", step="1",
+                      required=True, hint="Date and time you entered the trade, in UTC.") }}
+            {{ f.text("entry_price", "Entry price", values, errors, labels, inputmode="decimal", required=True,
+                      hint="Exact price, e.g. 1.08500") }}
+            {{ f.text("stop_loss", "Stop-loss", values, errors, labels, inputmode="decimal", required=True,
+                      hint="Below entry for a long, above entry for a short.") }}
+            {{ f.text("take_profit", "Take-profit", values, errors, labels, inputmode="decimal",
+                      hint="Your planned target, if any.") }}
+            {{ f.text("position_size", "Position size", values, errors, labels, inputmode="decimal", required=True,
+                      hint="In the units the instrument's contract multiplier assumes, e.g. lots.") }}
+            {{ f.text("fees", "Fees", values, errors, labels, inputmode="decimal",
+                      hint="Total commission and charges, in the quote currency. Blank means 0.") }}
+        </div>
+    </section>
+
+    <section class="card form-section" aria-labelledby="section-exit">
+        <h2 class="form-section__title" id="section-exit">Exit</h2>
+        <p class="form-section__note" data-open-note hidden>
+            This trade is <strong>open</strong>, so it has no exit yet. Realised results appear once you close it.
+        </p>
+        <p class="form-section__note no-js-only">Leave these blank if the trade is still open.</p>
+        <fieldset class="form-grid exit-fields" data-exit-fields>
+            <legend class="visually-hidden">Exit details</legend>
+            {{ f.text("exit_price", "Exit price", values, errors, labels, inputmode="decimal",
+                      hint="Required for a closed trade.") }}
+            {{ f.text("closed_at", "Exit time (UTC)", values, errors, labels, type="datetime-local", step="1",
+                      hint=("Leave blank to keep it unknown." if (editing and is_legacy) else
+                            "Required for a closed trade. Streaks, drawdown and monthly results follow the order trades closed.")) }}
+        </fieldset>
+    </section>
+
+    <section class="card form-section" aria-labelledby="section-context">
+        <h2 class="form-section__title" id="section-context">Context and notes</h2>
+        <div class="form-grid">
+            {{ f.text("strategy", "Strategy", values, errors, labels, maxlength=50, list="strategy-options",
+                      hint="A short label such as Breakout. Existing labels are suggested as you type.") }}
+            <datalist id="strategy-options">
+                {% for s in strategies %}<option value="{{ s }}"></option>{% endfor %}
+            </datalist>
+            {{ f.select("session", "Session", values, errors, labels,
+                        [("ASIA", "Asia"), ("LONDON", "London"), ("NEW_YORK", "New York"), ("OTHER", "Other")],
+                        blank="Not recorded") }}
+            {{ f.textarea("notes", "Notes", values, errors, labels, maxlength=2000,
+                          hint="Why you took it, how you managed it, what you learned. Up to 2,000 characters.") }}
+        </div>
+    </section>
+
+    <div class="form-actions">
+        <a class="button button--ghost" href="{{ back if editing else url_for('main.journal') }}">Cancel</a>
+        <button class="button button--primary" type="submit" data-busy-label="Saving…">
+            {% if editing %}Save changes{% else %}Save trade{% endif %}
+        </button>
+    </div>
+</form>
+{% endblock %}

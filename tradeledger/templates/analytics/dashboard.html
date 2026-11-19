@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% import "macros/ui.html" as ui %}
+{% import "analytics/_macros.html" as dash %}
+
+{% block title %}Analytics{% endblock %}
+{% block heading %}Analytics{% endblock %}
+{% block description %}Realised performance of your closed trades, measured in R. Times are UTC.{% endblock %}
+{% block actions %}
+    <a class="button button--secondary" href="{{ url_for('main.journal') }}">Trade journal</a>
+{% endblock %}
+{% block scripts %}
+    {% if dashboard and dashboard.has_results %}
+    {# Chart.js first, then our code; both "defer", so they run in this order
+       after the page is parsed. The Content-Security-Policy of this page
+       allows exactly this Chart.js URL and nothing else from outside. #}
+    <script src="{{ chart_js.url }}" defer crossorigin="anonymous" referrerpolicy="no-referrer"
+            {%- if chart_js.integrity %} integrity="{{ chart_js.integrity }}"{% endif %}></script>
+    <script src="{{ url_for('static', filename='js/analytics.js') }}" defer></script>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+{# ---------- 1. Filters ---------- #}
+<form class="card filters dash-filters" method="get" action="{{ url_for('main.analytics') }}" aria-labelledby="filters-title">
+    <h2 class="dash-filters__title" id="filters-title">Reporting filters</h2>
+    {% if errors %}
+    <div class="error-summary" role="alert" tabindex="-1" data-error-summary aria-labelledby="filter-errors-title">
+        <h3 class="error-summary__title" id="filter-errors-title">The report was not produced: fix {{ "this filter" if errors | length == 1 else "these filters" }}</h3>
+        <ul>
+            {% for name, message in errors.items() %}
+            <li><a href="#dash-{{ name }}">{{ labels[name] }} {{ message }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    <div class="filters__grid">
+        {% macro filter_error(name) %}{% if errors.get(name) %}<p class="field__error" id="dash-{{ name }}-error"><span class="visually-hidden">Error:</span> {{ labels[name] }} {{ errors[name] }}</p>{% endif %}{% endmacro %}
+        {% macro invalid(name) %}{% if errors.get(name) %} aria-invalid="true" aria-describedby="dash-{{ name }}-error"{% endif %}{% endmacro %}
+        <div class="field">
+            <label class="field__label" for="dash-instrument_id">Instrument</label>
+            <select class="input select" id="dash-instrument_id" name="instrument_id"{{ invalid("instrument_id") }}>
+                <option value="">All instruments</option>
+                {% for i in instruments %}
+                <option value="{{ i.id }}" {% if raw.instrument_id == i.id | string %}selected{% endif %}>{{ i.symbol }}</option>
+                {% endfor %}
+            </select>
+            {{ filter_error("instrument_id") }}
+        </div>
+        <div class="field">
+            <label class="field__label" for="dash-strategy">Strategy</label>
+            <select class="input select" id="dash-strategy" name="strategy"{{ invalid("strategy") }}>
+                <option value="">All strategies</option>
+                {% for s in strategies %}
+                <option value="{{ s }}" {% if raw.strategy == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+            {{ filter_error("strategy") }}
+        </div>
+        <div class="field">
+            <label class="field__label" for="dash-session">Session</label>
+            <select class="input select" id="dash-session" name="session"{{ invalid("session") }}>
+                <option value="">All sessions</option>
+                {% for key, label in session_options %}
+                <option value="{{ key }}" {% if raw.session | upper == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            {{ filter_error("session") }}
+        </div>
+        <div class="field">
+            <label class="field__label" for="dash-start">Realised from</label>
+            <input class="input" id="dash-start" name="start" type="date" value="{{ raw.start }}"{{ invalid("start") }}>
+            {{ filter_error("start") }}
+        </div>
+        <div class="field">
+            <label class="field__label" for="dash-end">Realised to</label>
+            <input class="input" id="dash-end" name="end" type="date" value="{{ raw.end }}"{{ invalid("end") }}>
+            {{ filter_error("end") }}
+        </div>
+    </div>
+    <p class="field__hint">Dates select trades by when they were <strong>closed</strong> (UTC), not when they were opened. The address bar keeps your filters, so a filtered report can be bookmarked.</p>
+    <div class="filters__actions">
+        <button class="button button--primary" type="submit">Apply filters</button>
+        {% if active or errors %}<a class="button button--ghost" href="{{ url_for('main.analytics') }}">Reset filters</a>{% endif %}
+    </div>
+</form>
+
+{% if dashboard %}
+{% set report = dashboard.report %}
+
+{% if active %}
+<p class="results-summary" role="status">
+    Showing results for:
+    {% for name, value in active.items() %}<span class="filter-chip">{{ labels[name] }}:
+        {% if name == "instrument_id" %}{% for i in instruments if i.id == value %}{{ i.symbol }}{% endfor %}
+        {% elif name == "session" %}{% for key, label in session_options if key == value %}{{ label }}{% endfor %}
+        {% else %}{{ value }}{% endif %}</span>{% endfor %}
+</p>
+{% endif %}
+
+{# ---------- 2. KPI cards ---------- #}
+<section aria-labelledby="kpi-title">
+    <div class="section-heading">
+        <h2 id="kpi-title">Summary</h2>
+        <p class="muted">Closed trades only. Open trades have no realised result.</p>
+    </div>
+    <dl class="kpi-grid">
+        {% for kpi in dashboard.kpis %}{{ dash.kpi_card(kpi) }}{% endfor %}
+    </dl>
+    {% if money %}
+    <div class="card money-strip">
+        <h3 class="money-strip__title">Net P&amp;L by quote currency</h3>
+        <ul class="money-strip__list" role="list">
+            {% for currency, text, tone, trades in money %}
+            <li data-currency="{{ currency }}"><span class="muted">{{ currency }}</span>
+                <span class="num{% if tone != 'neutral' %} num--{{ tone }}{% endif %}">{{ text }}</span>
+                <span class="muted">({{ trades }} {{ "trade" if trades == 1 else "trades" }})</span></li>
+            {% endfor %}
+        </ul>
+        <p class="money-strip__note">Each currency is reported separately. TradeLedger has no exchange rates, so it never adds USD and GBP together.</p>
+    </div>
+    {% endif %}
+</section>
+
+{% if not dashboard.has_results %}
+    {% if report.open_trades %}
+    {{ ui.empty_state("No closed trades match these filters",
+                      report.open_trades ~ " open " ~ ("trade matches" if report.open_trades == 1 else "trades match") ~ ", but open trades have no realised result yet. Close a trade, or widen the filters.",
+                      url_for('main.analytics'), "Reset filters") }}
+    {% elif active %}
+    {{ ui.empty_state("No closed trades match these filters",
+                      "Try a wider date range or another instrument, strategy or session.",
+                      url_for('main.analytics'), "Reset filters") }}
+    {% else %}
+    {{ ui.empty_state("No closed trades yet",
+                      "Charts and statistics appear once you record a closed trade.",
+                      url_for('main.new_trade'), "Record a trade") }}
+    {% endif %}
+{% else %}
+
+<p class="notice notice--info no-js-only">Charts need JavaScript. Every figure they show is also in the tables further down this page.</p>
+
+{# ---------- 3. Performance over time ---------- #}
+<section aria-labelledby="time-title">
+    <div class="section-heading"><h2 id="time-title">Performance over time</h2></div>
+    <div class="dash-grid dash-grid--time">
+        {{ dash.chart_figure("curve", "Cumulative realised R",
+            "Running total of R-multiples, in the order trades closed. A trade opened earlier but closed later appears when it closed. This is not an account equity curve: TradeLedger records no deposits or balances.",
+            dashboard.descriptions.curve, "table-series", tall=True) }}
+        {{ dash.chart_figure("drawdown", "Drawdown from peak",
+            "How far cumulative R sits below its highest point so far (the running peak, which starts at 0R). Measured in R, not as a percentage of an account.",
+            dashboard.descriptions.drawdown, "table-series") }}
+    </div>
+</section>
+
+{# ---------- 4. Breakdowns ---------- #}
+<section aria-labelledby="breakdown-title">
+    <div class="section-heading">
+        <h2 id="breakdown-title">Breakdowns</h2>
+        <p class="muted">Historical results, not predictions. Bars show total realised R.</p>
+    </div>
+    <div class="dash-grid">
+        {{ dash.chart_figure("monthly", "Realised R by month",
+            "Total R of trades closed in each UTC month. A month with no closed trades is left blank, not drawn as 0R.",
+            dashboard.descriptions.monthly, "table-monthly") }}
+        {{ dash.chart_figure("weekday", "Realised R by weekday (UTC)",
+            "Total R by the UTC weekday each trade closed, Monday to Sunday.",
+            dashboard.descriptions.weekday, "table-weekday") }}
+        {{ dash.chart_figure("instruments", "Realised R by instrument",
+            "Compared in R so instruments quoted in different currencies are comparable. * = fewer than " ~ small_sample ~ " closed trades.",
+            dashboard.descriptions.instruments, "table-instruments") }}
+        {{ dash.chart_figure("strategies", "Realised R by strategy",
+            "Every strategy label stored on your trades; trades without one are 'Unspecified'. * = fewer than " ~ small_sample ~ " closed trades.",
+            dashboard.descriptions.strategies, "table-strategies") }}
+        {{ dash.chart_figure("sessions", "Realised R by session",
+            "The session recorded on each trade. It is never guessed from the trade's time. * = fewer than " ~ small_sample ~ " closed trades.",
+            dashboard.descriptions.sessions, "table-sessions") }}
+    </div>
+</section>
+
+{# ---------- 5. Detailed tables ---------- #}
+<section aria-labelledby="tables-title">
+    <div class="section-heading">
+        <h2 id="tables-title">Detailed tables</h2>
+        <p class="muted">The exact figures behind every chart, rounded only for display.</p>
+    </div>
+
+    <section class="data-table" aria-labelledby="table-series-title">
+        <h3 class="data-table__title" id="table-series-title">Cumulative R and drawdown, trade by trade</h3>
+        {% if dashboard.series | length > dashboard.series_table | length %}
+        <p class="table-note">Showing the most recent {{ dashboard.series_table | length }} of {{ dashboard.series | length }} trades. The charts and the tables below include every trade; the full series is also available from <code>/api/v1/analytics/curve</code>.</p>
+        {% endif %}
+        <div class="table-wrap" id="table-series" role="region" aria-labelledby="table-series-title" tabindex="0">
+            <table class="table">
+                <caption class="visually-hidden">Closed trades in realised order with cumulative R, running peak and drawdown</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Realised (UTC)</th>
+                        <th scope="col">Trade</th>
+                        <th scope="col" class="num-col">Trade R</th>
+                        <th scope="col" class="num-col">Cumulative R</th>
+                        <th scope="col" class="num-col">Running peak</th>
+                        <th scope="col" class="num-col">Drawdown</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in dashboard.series_table %}
+                    <tr{% if p.trade_id == report.overall.max_drawdown_r.trough_trade_id %} class="is-max-drawdown"{% endif %}>
+                        <td data-label="Realised (UTC)">{{ p.realised_at | when }}{% if not p.close_time_known %} <span class="sample-tag">Entry time: exit not recorded</span>{% endif %}</td>
+                        <th scope="row" data-label="Trade"><a class="text-link" href="{{ url_for('main.trade_detail', trade_id=p.trade_id) }}">#{{ p.trade_id }} {{ p.symbol }}</a></th>
+                        <td data-label="Trade R" class="num-col">{{ ui.signed(p.realised_r, p.realised_r | r) }}</td>
+                        <td data-label="Cumulative R" class="num-col">{{ ui.signed(p.cumulative_r, p.cumulative_r | r) }}</td>
+                        <td data-label="Running peak" class="num-col">{{ p.peak_r | r }}</td>
+                        <td data-label="Drawdown" class="num-col">{{ p.drawdown_r | r_amount }}{% if p.trade_id == report.overall.max_drawdown_r.trough_trade_id %} <span class="sample-tag">Maximum</span>{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    {{ dash.period_table("table-monthly", "Results by month", "Month", dashboard.months) }}
+    {{ dash.period_table("table-weekday", "Results by weekday (UTC)", "Weekday", dashboard.weekdays) }}
+    {{ dash.group_table("table-instruments", "Results by instrument", "Instrument", dashboard.instruments, small_sample) }}
+    {{ dash.group_table("table-strategies", "Results by strategy", "Strategy", dashboard.strategies, small_sample) }}
+    {{ dash.group_table("table-sessions", "Results by session", "Session", dashboard.sessions, small_sample) }}
+</section>
+{% endif %}
+
+{# ---------- 6. Data quality ---------- #}
+<section class="card prose data-quality" aria-labelledby="quality-title">
+    <h2 id="quality-title">About these figures</h2>
+    <ul>
+        <li><strong>Open trades:</strong> {{ report.open_trades }} {{ "trade is" if report.open_trades == 1 else "trades are" }} open and excluded from every figure above.</li>
+        {% if report.unknown_close_time_trade_ids %}
+        <li><strong>Unknown exit times:</strong> {{ report.unknown_close_time_trade_ids | length }} closed {{ "trade was" if report.unknown_close_time_trade_ids | length == 1 else "trades were" }} recorded before exit times were tracked
+            (#{{ report.unknown_close_time_trade_ids | join(", #") }}). {{ "It is" if report.unknown_close_time_trade_ids | length == 1 else "They are" }} placed at {{ "its" if report.unknown_close_time_trade_ids | length == 1 else "their" }} <em>entry</em> time, an approximation that can move {{ "it" if report.unknown_close_time_trade_ids | length == 1 else "them" }} into an earlier day or month.</li>
+        {% endif %}
+        {% if report.r_unavailable %}
+        <li><strong>No usable R:</strong> {% for item in report.r_unavailable %}trade #{{ item.trade_id }} ({{ item.reason }}){{ ", " if not loop.last }}{% endfor %}. These count in win/loss figures and money, but not in R figures or charts.</li>
+        {% endif %}
+        {% if report.excluded %}
+        <li><strong>Could not be evaluated:</strong> {% for item in report.excluded %}trade #{{ item.trade_id }} ({{ item.reason }}){{ ", " if not loop.last }}{% endfor %}.</li>
+        {% endif %}
+        <li><strong>Running peak and drawdown:</strong> the running peak is the highest cumulative R reached so far, starting from 0R. Drawdown is the running peak minus the current cumulative R. Maximum drawdown is the largest such fall. Total realised R is simply where cumulative R ends.</li>
+        <li><strong>Units:</strong> R-multiples compare trades of any size and currency. Money is shown per quote currency only.</li>
+        <li><strong>Sample data:</strong> the trades loaded by <code>flask --app tradeledger seed-db</code> are synthetic, for demonstration only.</li>
+        <li><strong>Charts:</strong> drawn by Chart.js {{ chart_js.version }} from exact values calculated in Python. Positions on a chart are approximate; the tables and text are the reference.</li>
+    </ul>
+</section>
+
+{% if dashboard.has_results %}
+{# Chart data for analytics.js. type="application/json" is data, not code:
+   the browser never executes it, so it is compatible with the
+   Content-Security-Policy. tojson escapes <, > and & so the content cannot
+   close this element early. #}
+<script type="application/json" id="dashboard-data">{{ payload | tojson }}</script>
+{% endif %}
+{% endif %}
+{% endblock %}

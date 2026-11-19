@@ -1,0 +1,38 @@
+# Exact versions of the packages that TradeLedger's own dependencies pull in.
+# Use with -c so pip installs these versions without making them direct
+# dependencies:   pip install -r requirements-dev.txt -c constraints.txt
+#
+# These are the versions every Phase 7 and Phase 8 test run used (Python 3.13). Update
+# them deliberately (see docs/PHASE_7_RELEASE_CHECKLIST.md), never silently.
+# Not listed: the dependencies of pytest-cov, coverage and pip-audit, which
+# could not be installed in the Phase 7 build environment (no network), nor
+# those of psycopg, psycopg-pool and gunicorn (Phase 8, same reason).
+
+# cryptography (Phase 8)
+cffi==2.1.1
+pycparser==3.0
+
+# Flask
+Werkzeug==3.1.9
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+itsdangerous==2.2.0
+click==8.5.0
+blinker==1.9.0
+
+# pytest
+iniconfig==2.3.0
+packaging==26.3
+pluggy==1.6.0
+Pygments==2.21.0
+
+# jsonschema
+attrs==26.1.0
+jsonschema-specifications==2025.9.1
+referencing==0.37.0
+rpds-py==2026.6.3
+typing_extensions==4.16.0
+
+# playwright
+greenlet==3.5.6
+pyee==13.0.1

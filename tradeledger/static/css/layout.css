@@ -1,0 +1,301 @@
+/* ==========================================================================
+   Application shell
+   Wide screens (64rem / 1024px and up): fixed sidebar + main column (Grid).
+   Narrower screens with JavaScript: the sidebar slides in from the left,
+   opened by the Menu button.
+   Without JavaScript: the sidebar simply sits above the page, so the
+   navigation is never lost.
+   ========================================================================== */
+.skip-link {
+    position: absolute;
+    left: var(--space-4);
+    top: -10rem;
+    z-index: 100;
+    padding: var(--space-2) var(--space-4);
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+}
+
+.skip-link:focus {
+    top: var(--space-4);
+}
+
+.shell {
+    min-height: 100vh;
+}
+
+.main-area {
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* lets wide tables scroll inside instead of stretching the page */
+    min-height: 100vh;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    padding: var(--space-5) var(--space-4);
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+}
+
+.sidebar__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+.brand__mark {
+    display: inline-grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--radius);
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    font-weight: 750;
+    font-size: var(--text-sm);
+}
+
+.brand__text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.brand__name {
+    font-weight: 700;
+}
+
+.brand__tag {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+}
+
+.nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.nav__link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    min-height: var(--control-height);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.nav__link:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+.nav__link[aria-current="page"] {
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+    box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.nav__tag {
+    padding: 0 var(--space-2);
+    border-radius: 999px;
+    border: 1px solid var(--color-border-strong);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+}
+
+.sidebar__footer {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+}
+
+.env-badge {
+    align-self: flex-start;
+    padding: 0.1rem var(--space-2);
+    border-radius: 999px;
+    background: var(--color-warning-soft);
+    color: var(--color-warning);
+    font-weight: 600;
+}
+
+/* Two classes deep so these beat the generic .icon-button rule in
+   components.css, which is loaded later. */
+.sidebar .sidebar__close,
+.topbar .nav-toggle {
+    display: none;
+}
+
+.nav-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(3, 7, 15, 0.6);
+}
+
+.nav-backdrop[hidden] {
+    display: none;
+}
+
+/* ---------- Top bar ---------- */
+.topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-5) var(--space-5) var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.topbar__titles {
+    flex: 1 1 18rem;
+    min-width: 0;
+}
+
+.topbar__title {
+    font-size: var(--text-2xl);
+}
+
+.topbar__description {
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+}
+
+.topbar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.topbar__actions:empty {
+    display: none;
+}
+
+/* ---------- Content ---------- */
+.content {
+    flex: 1;
+    width: 100%;
+    max-width: var(--content-max);
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+.content:focus {
+    outline: none;
+}
+
+.site-footer {
+    padding: var(--space-4) var(--space-5);
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-subtle);
+    font-size: var(--text-xs);
+}
+
+/* ---------- Wide screens: sidebar beside the content ---------- */
+@media (min-width: 64rem) {
+    .shell {
+        display: grid;
+        grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    }
+
+    .sidebar {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+    }
+
+    .nav-backdrop {
+        display: none;
+    }
+}
+
+/* ---------- Narrow screens with JavaScript: off-canvas sidebar ---------- */
+@media (max-width: 63.99rem) {
+    .js .topbar .nav-toggle,
+    .js .sidebar .sidebar__close {
+        display: inline-flex;
+    }
+
+    .js .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 50;
+        width: min(var(--sidebar-width), 85vw);
+        overflow-y: auto;
+        transform: translateX(-100%);
+        visibility: hidden; /* closed menu links are not reachable by Tab */
+        transition: transform 0.2s ease, visibility 0.2s;
+        box-shadow: var(--shadow);
+    }
+
+    .js .sidebar[data-open="true"] {
+        transform: translateX(0);
+        visibility: visible;
+        /* Become visible at once when opening, so app.js can move focus
+           to the first link (focus() fails on a visibility:hidden
+           element). On close, the base rule delays hiding until the
+           slide-out has finished. */
+        transition: transform 0.2s ease, visibility 0s;
+    }
+
+    .js body.nav-open {
+        overflow: hidden;
+    }
+
+    /* Without JavaScript: navigation stays visible above the page. */
+    html:not(.js) .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    html:not(.js) .sidebar__footer {
+        display: none;
+    }
+}
+
+@media (max-width: 40rem) {
+    .topbar {
+        padding: var(--space-4);
+    }
+
+    .topbar__title {
+        font-size: var(--text-xl);
+    }
+
+    .content {
+        padding: var(--space-4);
+        gap: var(--space-5);
+    }
+
+    .topbar__actions {
+        width: 100%;
+    }
+
+    .topbar__actions .button {
+        flex: 1 1 auto;
+    }
+}

@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% import "macros/forms.html" as f %}
+
+{% block title %}Account{% endblock %}
+{% block heading %}Account{% endblock %}
+{% block description %}Your sign-in details, sessions and API tokens.{% endblock %}
+
+{% block content %}
+<section class="card prose" aria-labelledby="profile-title">
+    <h2 id="profile-title">Your account</h2>
+    <dl class="detail-list">
+        <div><dt>Email address</dt><dd>{{ account.email }}</dd></div>
+        <div><dt>Created</dt><dd>{{ account.created_at | when }}</dd></div>
+        <div><dt>Last sign-in</dt><dd>{{ account.last_login_at | when if account.last_login_at else "None recorded yet" }}</dd></div>
+    </dl>
+</section>
+
+<section class="card form-section" aria-labelledby="password-title">
+        <h2 class="form-section__title" id="password-title">Change password</h2>
+        <p class="muted">Changing your password signs out every other browser and revokes all your API tokens.</p>
+        {{ f.error_summary(password_errors, password_labels) }}
+        <form method="post" action="{{ url_for('main.change_password') }}" novalidate data-submit-once>
+            {{ csrf_field() }}
+            <input type="email" name="username" value="{{ account.email }}" autocomplete="username" hidden>
+            <div class="form-stack">
+                {{ f.text("current_password", "Current password", {}, password_errors, password_labels, type="password",
+                          required=True, maxlength=128, autocomplete="current-password") }}
+                {{ f.text("new_password", "New password", {}, password_errors, password_labels, type="password",
+                          required=True, maxlength=128, autocomplete="new-password", hint="At least 12 characters.") }}
+                {{ f.text("confirm_password", "Confirm new password", {}, password_errors, password_labels,
+                          type="password", required=True, maxlength=128, autocomplete="new-password") }}
+            </div>
+            <div class="form-actions">
+                <button class="button button--primary" type="submit" data-busy-label="Saving…">Change password</button>
+            </div>
+        </form>
+</section>
+
+<section class="card form-section" aria-labelledby="two-step-title">
+    <h2 class="form-section__title" id="two-step-title">Two-step verification</h2>
+    {% if account.two_step_enabled %}
+    <p><span class="badge badge--win">On</span> Signing in needs your password and a code from your authenticator app.</p>
+    <p><a href="{{ url_for('main.two_step_settings') }}">Manage two-step verification</a></p>
+    {% else %}
+    <p><span class="badge badge--neutral">Off</span> Add a code from an authenticator app to every sign-in, so a stolen password alone is not enough.</p>
+    <p><a class="button button--secondary" href="{{ url_for('main.two_step_settings') }}">Set up two-step verification</a></p>
+    {% endif %}
+</section>
+
+<section class="card form-section" aria-labelledby="sessions-title">
+    <h2 class="form-section__title" id="sessions-title">Signed-in browsers</h2>
+    <p>Every browser signed in to your account. Lost a device, or signed in on a shared computer? Sign that browser out here.
+       Sessions also end on their own after 8 hours, or 2 hours without activity.</p>
+    <div class="table-wrap" role="region" aria-label="Signed-in browsers table" tabindex="0">
+        <table class="table table--sessions">
+            <caption class="visually-hidden">Browsers signed in to your account, most recently active first</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Browser</th>
+                    <th scope="col">Signed in</th>
+                    <th scope="col">Last active</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sessions %}
+                <tr{% if s.id == current_session_id %} class="is-current"{% endif %}>
+                    <td data-label="Browser"><span class="session-browser"><span>{{ s.user_agent or "Unknown browser" }}</span>{% if s.id == current_session_id %}<span class="badge badge--open">This browser</span>{% endif %}</span></td>
+                    <td data-label="Signed in">{{ s.created_at | when_epoch }}</td>
+                    <td data-label="Last active">{{ s.last_seen_at | when_epoch }}</td>
+                    <td class="actions-col">
+                        <form method="post" action="{{ url_for('main.revoke_session', session_id=s.id) }}">
+                            {{ csrf_field() }}
+                            <button class="button button--small button--secondary" type="submit">Sign out<span class="visually-hidden"> {{ "this browser" if s.id == current_session_id else s.user_agent }}</span></button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if sessions | length > 1 %}
+    <form method="post" action="{{ url_for('main.end_other_sessions') }}">
+        {{ csrf_field() }}
+        <div class="form-actions">
+            <button class="button button--secondary" type="submit">Sign out everywhere else</button>
+        </div>
+    </form>
+    {% endif %}
+</section>
+
+{% if api_enabled %}
+<section class="card form-section" aria-labelledby="tokens-title">
+    <h2 class="form-section__title" id="tokens-title">API tokens</h2>
+    <p>Programs use a token to call the JSON API (<code>/api/v1</code>) on your behalf, with the header
+       <code>Authorization: Bearer &lt;token&gt;</code>. A token can read and change your trades, so treat it like a password.</p>
+
+    {% if new_token %}
+    <div class="notice notice--warning token-reveal" role="status">
+        <p><strong>Copy your new token now. It will not be shown again.</strong></p>
+        <label class="field__label" for="new-token-value">Token “{{ new_token.record.name }}”</label>
+        <input class="input token-reveal__value" id="new-token-value" type="text" readonly
+               value="{{ new_token.value }}" spellcheck="false" autocomplete="off">
+        <p class="muted">Expires {{ new_token.record.expires_at | when }}.</p>
+    </div>
+    {% endif %}
+
+    {% if tokens %}
+    <div class="table-wrap" role="region" aria-label="API tokens table" tabindex="0">
+        <table class="table">
+            <caption class="visually-hidden">Your API tokens, newest first</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Starts with</th>
+                    <th scope="col">Created</th>
+                    <th scope="col">Expires</th>
+                    <th scope="col">Last used</th>
+                    <th scope="col">Status</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tokens %}
+                <tr>
+                    <td data-label="Name">{{ t.name }}</td>
+                    <td data-label="Starts with"><code>{{ t.token_prefix }}…</code></td>
+                    <td data-label="Created">{{ t.created_at | when }}</td>
+                    <td data-label="Expires">{{ t.expires_at | when }}</td>
+                    <td data-label="Last used">{{ t.last_used_at | when }}</td>
+                    <td data-label="Status"><span class="badge badge--{{ 'win' if t.status == 'active' else 'neutral' }}">{{ t.status | title }}</span></td>
+                    <td class="actions-col">
+                        {% if t.status == "active" %}
+                        <form method="post" action="{{ url_for('main.revoke_api_token', token_id=t.id) }}">
+                            {{ csrf_field() }}
+                            <button class="button button--small button--danger" type="submit">Revoke<span class="visually-hidden"> token {{ t.name }}</span></button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="muted">You have no API tokens.</p>
+    {% endif %}
+
+    <h3 class="form-section__subtitle">Create a token</h3>
+    {{ f.error_summary(token_errors, token_labels) }}
+    <form method="post" action="{{ url_for('main.create_api_token') }}" novalidate data-submit-once>
+        {{ csrf_field() }}
+        <input type="hidden" name="form_nonce" value="{{ token_form_nonce }}">
+        <div class="form-grid">
+            {{ f.text("name", "Token name", token_values, token_errors, token_labels, required=True, maxlength=60,
+                      hint="What will use it, e.g. 'Import script on my laptop'.") }}
+            {{ f.select("lifetime_days", "Expires after", token_values, token_errors, token_labels,
+                        lifetime_options, required=True) }}
+        </div>
+        <div class="form-actions">
+            <button class="button button--primary" type="submit" data-busy-label="Creating…">Create token</button>
+        </div>
+    </form>
+</section>
+{% endif %}
+{% endblock %}

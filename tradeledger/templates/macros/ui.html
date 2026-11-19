@@ -1,0 +1,55 @@
+{# Small reusable pieces of interface. Import with:
+   {% import "macros/ui.html" as ui %} #}
+
+{# OPEN, WIN, LOSS, BREAKEVEN or CLOSED: always a word, never colour alone. #}
+{% macro outcome_badge(trade, result) -%}
+    {%- if trade.status == "OPEN" -%}
+        <span class="badge badge--open">Open</span>
+    {%- elif result -%}
+        <span class="badge badge--{{ result.outcome | lower }}">{{ result.outcome | title }}</span>
+    {%- else -%}
+        <span class="badge">Closed</span>
+    {%- endif -%}
+{%- endmacro %}
+
+{% macro direction_badge(direction) -%}
+    <span class="direction direction--{{ direction | lower }}">{{ direction | title }}</span>
+{%- endmacro %}
+
+{# Signed value with a class for colour; the sign and text carry the meaning. #}
+{% macro signed(value, text) -%}
+    {%- if value is none -%}<span class="muted">n/a</span>
+    {%- elif value > 0 -%}<span class="num num--positive">{{ text }}</span>
+    {%- elif value < 0 -%}<span class="num num--negative">{{ text }}</span>
+    {%- else -%}<span class="num">{{ text }}</span>
+    {%- endif -%}
+{%- endmacro %}
+
+{% macro empty_state(title, text, action_url=None, action_label=None) -%}
+    <div class="empty-state">
+        <h2 class="empty-state__title">{{ title }}</h2>
+        <p>{{ text }}</p>
+        {% if action_url %}<a class="button button--primary" href="{{ action_url }}">{{ action_label }}</a>{% endif %}
+    </div>
+{%- endmacro %}
+
+{# Previous / page x of y / next, keeping the active filters. #}
+{% macro pagination(page, total_pages, total, endpoint, params) -%}
+    {% if total_pages > 1 %}
+    <nav class="pagination" aria-label="Pagination">
+        {% if page > 1 %}
+            <a class="button button--secondary" rel="prev"
+               href="{{ url_for(endpoint, page=page - 1, **params) }}">Previous<span class="visually-hidden"> page</span></a>
+        {% else %}
+            <span class="button button--secondary is-disabled" aria-disabled="true">Previous</span>
+        {% endif %}
+        <span class="pagination__status">Page {{ page }} of {{ total_pages }}</span>
+        {% if page < total_pages %}
+            <a class="button button--secondary" rel="next"
+               href="{{ url_for(endpoint, page=page + 1, **params) }}">Next<span class="visually-hidden"> page</span></a>
+        {% else %}
+            <span class="button button--secondary is-disabled" aria-disabled="true">Next</span>
+        {% endif %}
+    </nav>
+    {% endif %}
+{%- endmacro %}

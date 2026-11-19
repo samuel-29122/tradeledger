@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Page not found{% endblock %}
+{% block heading %}Page not found{% endblock %}
+
+{% block content %}
+<section class="card error-page" aria-labelledby="error-title">
+    <p class="error-code" aria-hidden="true">404</p>
+    <h2 id="error-title">Page not found</h2>
+    <p>The page or trade you asked for does not exist. It may have been deleted, or the address may be mistyped.</p>
+    <div class="error-page__actions">
+        <a class="button button--primary" href="{{ url_for('main.index') }}">Back to the overview</a>
+        <a class="button button--secondary" href="{{ url_for('main.journal') }}">Open the journal</a>
+    </div>
+</section>
+{% endblock %}

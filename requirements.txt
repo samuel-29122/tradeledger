@@ -1,0 +1,19 @@
+# Runtime dependencies: what TradeLedger needs to run.
+# Exact versions (==) make installs repeatable. Dependencies of these
+# packages (Werkzeug, Jinja2, cffi, ...) are pinned in constraints.txt.
+Flask==3.1.3
+python-dotenv==1.2.3
+
+# Phase 8: Argon2id password hashing (pyca/cryptography, maintained by the
+# Python Cryptographic Authority). Version 50.0.1 is the one every Phase 8
+# test run used.
+cryptography==50.0.1
+
+# Phase 8: PostgreSQL driver and connection pool (psycopg 3), and the
+# production WSGI server. NOTE: these three could NOT be installed in the
+# Phase 8 build environment (no package index access); the versions were
+# taken from PyPI release listings. They are exercised by the CI
+# "postgres" and "docker" jobs, which have not yet run on GitHub.
+psycopg[binary]==3.3.8
+psycopg-pool==3.3.0
+gunicorn==26.0.0

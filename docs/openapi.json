@@ -1,0 +1,3044 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TradeLedger API",
+    "version": "1.0.0",
+    "description": "JSON API for the TradeLedger trading journal.\n\n**Authentication:** every endpoint except this document needs a personal API token, created on the Account page of the website: `Authorization: Bearer tl_...`. Tokens expire (90 days by default) and can be revoked; session cookies are ignored. Each token sees and changes only its owner's records; another user's record answers 404.\n\n**Conventions:** decimal values are exact strings; timestamps are UTC `YYYY-MM-DDTHH:MM:SSZ`; unavailable values are `null`; money is per quote currency; R values are currency-neutral; cumulative R is not account equity. Unknown body fields and query parameters are rejected with 400."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/trades": {
+      "get": {
+        "tags": [
+          "Trades"
+        ],
+        "summary": "List trades",
+        "description": "Newest trade_date first, then highest id first. Dates filter on entry time.",
+        "parameters": [
+          {
+            "name": "instrument_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Only this instrument. 400 if it does not exist."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OPEN",
+                "CLOSED"
+              ]
+            },
+            "description": "Only trades with this status (case-insensitive)."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "First entry date to include (YYYY-MM-DD, UTC, inclusive)."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Last entry date to include (YYYY-MM-DD, UTC, inclusive)."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number."
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Trades per page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of trades.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: malformed JSON, unknown fields or parameters, or failed validation (details lists each field).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed for this URL.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Trades"
+        ],
+        "summary": "Create a trade",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TradeInput"
+              },
+              "example": {
+                "instrument_id": 1,
+                "trade_date": "2026-04-01T08:15:00Z",
+                "closed_at": "2026-04-01T11:40:00Z",
+                "direction": "LONG",
+                "entry_price": "1.08500",
+                "stop_loss": "1.08300",
+                "take_profit": "1.08900",
+                "exit_price": "1.08900",
+                "position_size": "1",
+                "fees": "7",
+                "strategy": "Breakout",
+                "session": "LONDON",
+                "notes": "Synthetic example."
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created. Location header holds the new trade's URL.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeEnvelope"
+                },
+                "example": {
+                  "data": {
+                    "id": 17,
+                    "instrument_id": 1,
+                    "symbol": "EURUSD",
+                    "quote_currency": "USD",
+                    "trade_date": "2026-04-01T08:15:00Z",
+                    "closed_at": "2026-04-01T11:40:00Z",
+                    "direction": "LONG",
+                    "status": "CLOSED",
+                    "entry_price": "1.085",
+                    "stop_loss": "1.083",
+                    "take_profit": "1.089",
+                    "exit_price": "1.089",
+                    "position_size": "1",
+                    "fees": "7",
+                    "strategy": "Breakout",
+                    "session": "LONDON",
+                    "notes": "Synthetic example.",
+                    "created_at": "2026-11-15T09:00:00Z",
+                    "updated_at": "2026-11-15T09:00:00Z",
+                    "result": {
+                      "outcome": "WIN",
+                      "gross_pnl": "400",
+                      "fees": "7",
+                      "net_pnl": "393",
+                      "initial_risk": "200",
+                      "realised_r": "1.965",
+                      "planned_rr": "2",
+                      "r_unavailable_reason": null
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid trade. Nothing was written.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": {
+                    "code": "validation_error",
+                    "message": "The request is invalid.",
+                    "details": {
+                      "position_size": "must be greater than zero",
+                      "stop_loss": "must be below the entry price for a LONG trade"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 64 KB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request body is not application/json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trades/{trade_id}": {
+      "parameters": [
+        {
+          "name": "trade_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": "Trade id."
+        }
+      ],
+      "get": {
+        "tags": [
+          "Trades"
+        ],
+        "summary": "Get a trade",
+        "responses": {
+          "200": {
+            "description": "The trade.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist, or belongs to another user (the two are indistinguishable).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Trades"
+        ],
+        "summary": "Replace a trade",
+        "description": "Full replacement: every field in TradeReplace must be present (null for empty optional fields). There are no partial updates.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TradeReplace"
+              },
+              "example": {
+                "instrument_id": 1,
+                "trade_date": "2026-04-01T08:15:00Z",
+                "closed_at": "2026-04-01T11:40:00Z",
+                "direction": "LONG",
+                "entry_price": "1.08500",
+                "stop_loss": "1.08300",
+                "take_profit": "1.08900",
+                "exit_price": "1.08900",
+                "position_size": "1",
+                "fees": "7",
+                "strategy": "Breakout",
+                "session": "LONDON",
+                "notes": "Synthetic example."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated trade.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: malformed JSON, unknown fields or parameters, or failed validation (details lists each field).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist, or belongs to another user (the two are indistinguishable).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 64 KB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request body is not application/json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Trades"
+        ],
+        "summary": "Delete a trade",
+        "responses": {
+          "204": {
+            "description": "Deleted. No body."
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist, or belongs to another user (the two are indistinguishable).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/instruments": {
+      "get": {
+        "tags": [
+          "Instruments"
+        ],
+        "summary": "List instruments (sorted by symbol)",
+        "responses": {
+          "200": {
+            "description": "All instruments.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstrumentList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: malformed JSON, unknown fields or parameters, or failed validation (details lists each field).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Instruments"
+        ],
+        "summary": "Create an instrument",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstrumentInput"
+              },
+              "example": {
+                "symbol": "US30",
+                "name": "Wall Street 30 CFD (example values)",
+                "asset_class": "INDEX",
+                "price_increment": "1",
+                "contract_multiplier": "1",
+                "quote_currency": "USD"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstrumentEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: malformed JSON, unknown fields or parameters, or failed validation (details lists each field).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict, e.g. an instrument symbol you have already recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 64 KB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request body is not application/json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/instruments/{instrument_id}": {
+      "parameters": [
+        {
+          "name": "instrument_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": "Instrument id."
+        }
+      ],
+      "get": {
+        "tags": [
+          "Instruments"
+        ],
+        "summary": "Get an instrument",
+        "responses": {
+          "200": {
+            "description": "The instrument.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstrumentEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist, or belongs to another user (the two are indistinguishable).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/summary": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Overall realised performance",
+        "parameters": [
+          {
+            "name": "instrument_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Only this instrument. 400 if it does not exist."
+          },
+          {
+            "name": "strategy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "description": "Only trades with exactly this strategy label (case-sensitive). Phase 6."
+          },
+          {
+            "name": "session",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ASIA",
+                "LONDON",
+                "NEW_YORK",
+                "OTHER"
+              ]
+            },
+            "description": "Only trades recorded in this session (case-insensitive). Phase 6."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "First realised date (closed_at, or trade_date if unknown) to include."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Last realised date to include (inclusive)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Overall statistics.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryAnalytics"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: malformed JSON, unknown fields or parameters, or failed validation (details lists each field).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed for this URL.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/instruments": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Performance by instrument",
+        "description": "Sorted by symbol.",
+        "parameters": [
+          {
+            "name": "instrument_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Only this instrument. 400 if it does not exist."
+          },
+          {
+            "name": "strategy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "description": "Only trades with exactly this strategy label (case-sensitive). Phase 6."
+          },
+          {
+            "name": "session",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ASIA",
+                "LONDON",
+                "NEW_YORK",
+                "OTHER"
+              ]
+            },
+            "description": "Only trades recorded in this session (case-insensitive). Phase 6."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "First realised date (closed_at, or trade_date if unknown) to include."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Last realised date to include (inclusive)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Groups in a stable order.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupedAnalytics"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: malformed JSON, unknown fields or parameters, or failed validation (details lists each field).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed for this URL.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/strategies": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Performance by strategy",
+        "description": "Sorted alphabetically; untagged trades are 'Unspecified'.",
+        "parameters": [
+          {
+            "name": "instrument_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Only this instrument. 400 if it does not exist."
+          },
+          {
+            "name": "strategy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "description": "Only trades with exactly this strategy label (case-sensitive). Phase 6."
+          },
+          {
+            "name": "session",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ASIA",
+                "LONDON",
+                "NEW_YORK",
+                "OTHER"
+              ]
+            },
+            "description": "Only trades recorded in this session (case-insensitive). Phase 6."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "First realised date (closed_at, or trade_date if unknown) to include."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Last realised date to include (inclusive)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Groups in a stable order.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupedAnalytics"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: malformed JSON, unknown fields or parameters, or failed validation (details lists each field).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed for this URL.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/sessions": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Performance by session",
+        "description": "Sorted alphabetically; untagged trades are 'Unspecified'.",
+        "parameters": [
+          {
+            "name": "instrument_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Only this instrument. 400 if it does not exist."
+          },
+          {
+            "name": "strategy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "description": "Only trades with exactly this strategy label (case-sensitive). Phase 6."
+          },
+          {
+            "name": "session",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ASIA",
+                "LONDON",
+                "NEW_YORK",
+                "OTHER"
+              ]
+            },
+            "description": "Only trades recorded in this session (case-insensitive). Phase 6."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "First realised date (closed_at, or trade_date if unknown) to include."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Last realised date to include (inclusive)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Groups in a stable order.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupedAnalytics"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: malformed JSON, unknown fields or parameters, or failed validation (details lists each field).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed for this URL.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/weekday": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Performance by realised weekday (UTC)",
+        "description": "Monday to Sunday; days with no trades are omitted.",
+        "parameters": [
+          {
+            "name": "instrument_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Only this instrument. 400 if it does not exist."
+          },
+          {
+            "name": "strategy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "description": "Only trades with exactly this strategy label (case-sensitive). Phase 6."
+          },
+          {
+            "name": "session",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ASIA",
+                "LONDON",
+                "NEW_YORK",
+                "OTHER"
+              ]
+            },
+            "description": "Only trades recorded in this session (case-insensitive). Phase 6."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "First realised date (closed_at, or trade_date if unknown) to include."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Last realised date to include (inclusive)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Groups in a stable order.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupedAnalytics"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: malformed JSON, unknown fields or parameters, or failed validation (details lists each field).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed for this URL.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/monthly": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Performance by realised month (YYYY-MM, UTC)",
+        "description": "Oldest first.",
+        "parameters": [
+          {
+            "name": "instrument_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Only this instrument. 400 if it does not exist."
+          },
+          {
+            "name": "strategy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "description": "Only trades with exactly this strategy label (case-sensitive). Phase 6."
+          },
+          {
+            "name": "session",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ASIA",
+                "LONDON",
+                "NEW_YORK",
+                "OTHER"
+              ]
+            },
+            "description": "Only trades recorded in this session (case-insensitive). Phase 6."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "First realised date (closed_at, or trade_date if unknown) to include."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Last realised date to include (inclusive)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Groups in a stable order.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupedAnalytics"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: malformed JSON, unknown fields or parameters, or failed validation (details lists each field).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed for this URL.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/curve": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Cumulative realised R (chart data)",
+        "description": "In realised order. NOT an account equity curve.",
+        "parameters": [
+          {
+            "name": "instrument_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Only this instrument. 400 if it does not exist."
+          },
+          {
+            "name": "strategy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "description": "Only trades with exactly this strategy label (case-sensitive). Phase 6."
+          },
+          {
+            "name": "session",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ASIA",
+                "LONDON",
+                "NEW_YORK",
+                "OTHER"
+              ]
+            },
+            "description": "Only trades recorded in this session (case-insensitive). Phase 6."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "First realised date (closed_at, or trade_date if unknown) to include."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Last realised date to include (inclusive)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Curve points.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurveAnalytics"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: malformed JSON, unknown fields or parameters, or failed validation (details lists each field).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, unknown, expired or revoked API token, or a disabled account. The response carries `WWW-Authenticate: Bearer`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API is switched off in this environment (TRADELEDGER_API_ENABLED=0).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed for this URL.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "tags": [
+          "Documentation"
+        ],
+        "summary": "This specification",
+        "description": "Public: needs no token, and is available even when the API is switched off.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1 document.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Trade": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "instrument_id": {
+            "type": "integer"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "quote_currency": {
+            "type": "string",
+            "description": "Currency of all money values for this trade."
+          },
+          "trade_date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+            "description": "Entry time. UTC, ISO 8601, e.g. 2026-03-02T08:15:00Z."
+          },
+          "closed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+            "description": "Exit time. null for OPEN trades, and for legacy CLOSED trades recorded before the exit time was captured (never invented). UTC, ISO 8601, e.g. 2026-03-02T08:15:00Z."
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "LONG",
+              "SHORT"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "CLOSED"
+            ]
+          },
+          "entry_price": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Entry price. Exact decimal as a string (never a float).",
+            "examples": [
+              "1.085"
+            ]
+          },
+          "stop_loss": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Initial stop-loss price. Exact decimal as a string (never a float)."
+          },
+          "take_profit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Target price, if planned. Exact decimal as a string (never a float)."
+          },
+          "exit_price": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Exit price. null while OPEN. Exact decimal as a string (never a float)."
+          },
+          "position_size": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Position size in the units the instrument's contract_multiplier assumes. Exact decimal as a string (never a float)."
+          },
+          "fees": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Total fees, in the quote currency. Exact decimal as a string (never a float)."
+          },
+          "strategy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Free-text strategy label (max 50 characters)."
+          },
+          "session": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Trading session.",
+            "enum": [
+              "ASIA",
+              "LONDON",
+              "NEW_YORK",
+              "OTHER",
+              null
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Journal notes (max 2000 characters)."
+          },
+          "created_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+            "description": "When the record was created. UTC, ISO 8601, e.g. 2026-03-02T08:15:00Z."
+          },
+          "updated_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+            "description": "When the record was last changed. UTC, ISO 8601, e.g. 2026-03-02T08:15:00Z."
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TradeResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Calculated by the analytics engine for CLOSED trades; null for OPEN trades."
+          }
+        },
+        "required": [
+          "id",
+          "instrument_id",
+          "symbol",
+          "quote_currency",
+          "trade_date",
+          "closed_at",
+          "direction",
+          "status",
+          "entry_price",
+          "stop_loss",
+          "take_profit",
+          "exit_price",
+          "position_size",
+          "fees",
+          "strategy",
+          "session",
+          "notes",
+          "created_at",
+          "updated_at",
+          "result"
+        ],
+        "additionalProperties": false
+      },
+      "TradeResult": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "WIN",
+              "LOSS",
+              "BREAKEVEN"
+            ],
+            "description": "From net P&L: > 0 WIN, < 0 LOSS, exactly 0 BREAKEVEN."
+          },
+          "gross_pnl": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "(exit - entry) x direction x size x contract_multiplier. Exact decimal as a string (never a float)."
+          },
+          "fees": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Fees. Exact decimal as a string (never a float)."
+          },
+          "net_pnl": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "gross_pnl - fees. Exact decimal as a string (never a float)."
+          },
+          "initial_risk": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Money lost if the stop is hit (fees excluded). null if the stop is invalid. Exact decimal as a string (never a float)."
+          },
+          "realised_r": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "net_pnl / initial_risk. null when initial risk is not positive. Exact decimal as a string (never a float)."
+          },
+          "planned_rr": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Planned reward / planned risk from prices. null without a valid target. Exact decimal as a string (never a float)."
+          },
+          "r_unavailable_reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why realised_r is null, if it is."
+          }
+        },
+        "required": [
+          "outcome",
+          "gross_pnl",
+          "fees",
+          "net_pnl",
+          "initial_risk",
+          "realised_r",
+          "planned_rr",
+          "r_unavailable_reason"
+        ],
+        "additionalProperties": false
+      },
+      "TradeInput": {
+        "type": "object",
+        "properties": {
+          "instrument_id": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Must reference an existing instrument."
+          },
+          "trade_date": {
+            "type": "string",
+            "description": "ISO 8601 date-time. A value without an offset is treated as UTC; offsets are converted to UTC. A bare date is rejected.",
+            "examples": [
+              "2026-03-02T08:15:00Z",
+              "2026-03-02 08:15",
+              "2026-03-02T09:15:00+01:00"
+            ]
+          },
+          "closed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Exit time. Required when the trade is CLOSED; must be null/absent when OPEN; must not be before trade_date. Exception: a legacy CLOSED trade whose exit time was never recorded may keep null when replaced with PUT.",
+            "examples": [
+              "2026-03-02T08:15:00Z",
+              "2026-03-02 08:15",
+              "2026-03-02T09:15:00+01:00"
+            ]
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "LONG",
+              "SHORT",
+              "long",
+              "short"
+            ],
+            "description": "Case-insensitive."
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "OPEN or CLOSED (case-insensitive). If omitted: CLOSED when exit_price is given, otherwise OPEN. CLOSED requires exit_price; OPEN must not have one."
+          },
+          "entry_price": {
+            "description": "Greater than 0. Decimal value. Send a string (recommended, e.g. \"1.085\") or a JSON number; numbers are read exactly, never as binary floats. NaN and Infinity are rejected. At most 15 significant digits, 15 digits before the decimal point and 15 decimal places.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "stop_loss": {
+            "description": "Greater than 0. LONG: below entry. SHORT: above entry. Never equal to entry.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "take_profit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional. LONG: above entry. SHORT: below entry."
+          },
+          "exit_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required for CLOSED, absent/null for OPEN. Greater than 0."
+          },
+          "position_size": {
+            "description": "Greater than 0.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "fees": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "0 or more. Defaults to 0."
+          },
+          "strategy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 50
+          },
+          "session": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ASIA, LONDON, NEW_YORK or OTHER (case-insensitive)."
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "instrument_id",
+          "trade_date",
+          "direction",
+          "entry_price",
+          "stop_loss",
+          "position_size"
+        ],
+        "additionalProperties": false
+      },
+      "TradeReplace": {
+        "type": "object",
+        "properties": {
+          "instrument_id": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Must reference an existing instrument."
+          },
+          "trade_date": {
+            "type": "string",
+            "description": "ISO 8601 date-time. A value without an offset is treated as UTC; offsets are converted to UTC. A bare date is rejected.",
+            "examples": [
+              "2026-03-02T08:15:00Z",
+              "2026-03-02 08:15",
+              "2026-03-02T09:15:00+01:00"
+            ]
+          },
+          "closed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Exit time. Required when the trade is CLOSED; must be null/absent when OPEN; must not be before trade_date. Exception: a legacy CLOSED trade whose exit time was never recorded may keep null when replaced with PUT.",
+            "examples": [
+              "2026-03-02T08:15:00Z",
+              "2026-03-02 08:15",
+              "2026-03-02T09:15:00+01:00"
+            ]
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "LONG",
+              "SHORT",
+              "long",
+              "short"
+            ],
+            "description": "Case-insensitive."
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "OPEN or CLOSED (case-insensitive). If omitted: CLOSED when exit_price is given, otherwise OPEN. CLOSED requires exit_price; OPEN must not have one."
+          },
+          "entry_price": {
+            "description": "Greater than 0. Decimal value. Send a string (recommended, e.g. \"1.085\") or a JSON number; numbers are read exactly, never as binary floats. NaN and Infinity are rejected. At most 15 significant digits, 15 digits before the decimal point and 15 decimal places.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "stop_loss": {
+            "description": "Greater than 0. LONG: below entry. SHORT: above entry. Never equal to entry.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "take_profit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional. LONG: above entry. SHORT: below entry."
+          },
+          "exit_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required for CLOSED, absent/null for OPEN. Greater than 0."
+          },
+          "position_size": {
+            "description": "Greater than 0.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "fees": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "0 or more. Defaults to 0."
+          },
+          "strategy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 50
+          },
+          "session": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ASIA, LONDON, NEW_YORK or OTHER (case-insensitive)."
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "instrument_id",
+          "trade_date",
+          "closed_at",
+          "direction",
+          "status",
+          "entry_price",
+          "stop_loss",
+          "take_profit",
+          "exit_price",
+          "position_size",
+          "fees",
+          "strategy",
+          "session",
+          "notes"
+        ],
+        "additionalProperties": false
+      },
+      "Instrument": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "Unique, upper case, 1-20 letters, digits or underscores."
+          },
+          "name": {
+            "type": "string"
+          },
+          "asset_class": {
+            "type": "string",
+            "enum": [
+              "FOREX",
+              "COMMODITY",
+              "INDEX",
+              "STOCK",
+              "OTHER"
+            ]
+          },
+          "price_increment": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Smallest price step quoted, e.g. 0.00001. Exact decimal as a string (never a float)."
+          },
+          "contract_multiplier": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Money (in quote_currency) per 1.0 move in price per 1.0 unit of position_size. Depends on your broker's contract specification; sample instruments use illustrative values. Exact decimal as a string (never a float)."
+          },
+          "quote_currency": {
+            "type": "string",
+            "description": "3-letter currency code in which P&L is denominated."
+          },
+          "created_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+            "description": "When the record was created. UTC, ISO 8601, e.g. 2026-03-02T08:15:00Z."
+          }
+        },
+        "required": [
+          "id",
+          "symbol",
+          "name",
+          "asset_class",
+          "price_increment",
+          "contract_multiplier",
+          "quote_currency",
+          "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "InstrumentInput": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "description": "1-20 letters, digits or underscores; stored upper case."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "asset_class": {
+            "type": "string",
+            "description": "FOREX, COMMODITY, INDEX, STOCK or OTHER (case-insensitive)."
+          },
+          "price_increment": {
+            "description": "Greater than 0.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "contract_multiplier": {
+            "description": "Greater than 0. See Instrument.contract_multiplier.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "quote_currency": {
+            "type": "string",
+            "description": "3 letters, e.g. USD."
+          }
+        },
+        "required": [
+          "symbol",
+          "name",
+          "asset_class",
+          "price_increment",
+          "contract_multiplier",
+          "quote_currency"
+        ],
+        "additionalProperties": false
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "per_page": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "type": "integer",
+            "description": "Matching trades across all pages."
+          },
+          "total_pages": {
+            "type": "integer",
+            "description": "0 when there are no matches."
+          }
+        },
+        "required": [
+          "page",
+          "per_page",
+          "total",
+          "total_pages"
+        ],
+        "additionalProperties": false
+      },
+      "TradeEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Trade"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "TradeList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Trade"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        },
+        "required": [
+          "data",
+          "pagination"
+        ],
+        "additionalProperties": false
+      },
+      "InstrumentEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Instrument"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "InstrumentList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Instrument"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "TradeRef": {
+        "type": "object",
+        "properties": {
+          "trade_id": {
+            "type": "integer"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "trade_date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+            "description": "Entry time. UTC, ISO 8601, e.g. 2026-03-02T08:15:00Z."
+          },
+          "value": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "The value that ranked this trade (R or net P&L). Exact decimal as a string (never a float)."
+          }
+        },
+        "required": [
+          "trade_id",
+          "symbol",
+          "trade_date",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "Drawdown": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Largest fall from a running peak (>= 0), in R or in one currency. Never a percentage. Exact decimal as a string (never a float)."
+          },
+          "peak_trade_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "null = the starting point (0)."
+          },
+          "trough_trade_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "null when there was no drawdown."
+          }
+        },
+        "required": [
+          "amount",
+          "peak_trade_id",
+          "trough_trade_id"
+        ],
+        "additionalProperties": false
+      },
+      "MoneySummary": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "trades": {
+            "type": "integer"
+          },
+          "gross_pnl": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Sum of P&L before fees. Exact decimal as a string (never a float)."
+          },
+          "fees": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Sum of fees. Exact decimal as a string (never a float)."
+          },
+          "net_pnl": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Sum of P&L after fees. Exact decimal as a string (never a float)."
+          },
+          "winning_pnl": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Sum of net P&L of winning trades (>= 0). Exact decimal as a string (never a float)."
+          },
+          "losing_pnl": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Sum of net P&L of losing trades (<= 0). Exact decimal as a string (never a float)."
+          },
+          "profit_factor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "winning_pnl / |losing_pnl|. null with no losing trades. Exact decimal as a string (never a float)."
+          },
+          "best_trade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TradeRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "worst_trade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TradeRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "max_drawdown": {
+            "$ref": "#/components/schemas/Drawdown"
+          }
+        },
+        "required": [
+          "currency",
+          "trades",
+          "gross_pnl",
+          "fees",
+          "net_pnl",
+          "winning_pnl",
+          "losing_pnl",
+          "profit_factor",
+          "best_trade",
+          "worst_trade",
+          "max_drawdown"
+        ],
+        "additionalProperties": false
+      },
+      "Summary": {
+        "type": "object",
+        "properties": {
+          "trades": {
+            "type": "integer",
+            "description": "Closed trades evaluated."
+          },
+          "wins": {
+            "type": "integer"
+          },
+          "losses": {
+            "type": "integer"
+          },
+          "breakevens": {
+            "type": "integer"
+          },
+          "win_rate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "wins / trades, as a fraction 0-1. null with no trades. Exact decimal as a string (never a float)."
+          },
+          "loss_rate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "losses / trades, 0-1. Exact decimal as a string (never a float)."
+          },
+          "breakeven_rate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "breakevens / trades, 0-1. Exact decimal as a string (never a float)."
+          },
+          "r_trades": {
+            "type": "integer",
+            "description": "Trades with a usable realised R."
+          },
+          "total_r": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Sum of realised R. Exact decimal as a string (never a float)."
+          },
+          "average_r": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Mean realised R. Exact decimal as a string (never a float)."
+          },
+          "average_win_r": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Mean R of winning trades. Exact decimal as a string (never a float)."
+          },
+          "average_loss_r": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Mean R of losing trades (negative). Exact decimal as a string (never a float)."
+          },
+          "expectancy_r": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "P(win) x average_win_r + P(loss) x average_loss_r, in R per trade. Exact decimal as a string (never a float)."
+          },
+          "profit_factor_r": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Sum of positive R / |sum of negative R|. null with no losses. Exact decimal as a string (never a float)."
+          },
+          "planned_rr_trades": {
+            "type": "integer"
+          },
+          "average_planned_rr": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Mean planned R:R of trades with a valid target. Exact decimal as a string (never a float)."
+          },
+          "longest_win_streak": {
+            "type": "integer"
+          },
+          "longest_loss_streak": {
+            "type": "integer"
+          },
+          "max_drawdown_r": {
+            "$ref": "#/components/schemas/Drawdown"
+          },
+          "best_trade_r": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TradeRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "worst_trade_r": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TradeRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "money": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MoneySummary"
+            },
+            "description": "One entry per quote currency. Currencies are never added together."
+          }
+        },
+        "required": [
+          "trades",
+          "wins",
+          "losses",
+          "breakevens",
+          "win_rate",
+          "loss_rate",
+          "breakeven_rate",
+          "r_trades",
+          "total_r",
+          "average_r",
+          "average_win_r",
+          "average_loss_r",
+          "expectancy_r",
+          "profit_factor_r",
+          "planned_rr_trades",
+          "average_planned_rr",
+          "longest_win_streak",
+          "longest_loss_streak",
+          "max_drawdown_r",
+          "best_trade_r",
+          "worst_trade_r",
+          "money"
+        ],
+        "additionalProperties": false
+      },
+      "GroupSummary": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string",
+            "description": "Group label."
+          },
+          "trades": {
+            "type": "integer",
+            "description": "Closed trades evaluated."
+          },
+          "wins": {
+            "type": "integer"
+          },
+          "losses": {
+            "type": "integer"
+          },
+          "breakevens": {
+            "type": "integer"
+          },
+          "win_rate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "wins / trades, as a fraction 0-1. null with no trades. Exact decimal as a string (never a float)."
+          },
+          "loss_rate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "losses / trades, 0-1. Exact decimal as a string (never a float)."
+          },
+          "breakeven_rate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "breakevens / trades, 0-1. Exact decimal as a string (never a float)."
+          },
+          "r_trades": {
+            "type": "integer",
+            "description": "Trades with a usable realised R."
+          },
+          "total_r": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Sum of realised R. Exact decimal as a string (never a float)."
+          },
+          "average_r": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Mean realised R. Exact decimal as a string (never a float)."
+          },
+          "average_win_r": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Mean R of winning trades. Exact decimal as a string (never a float)."
+          },
+          "average_loss_r": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Mean R of losing trades (negative). Exact decimal as a string (never a float)."
+          },
+          "expectancy_r": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "P(win) x average_win_r + P(loss) x average_loss_r, in R per trade. Exact decimal as a string (never a float)."
+          },
+          "profit_factor_r": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Sum of positive R / |sum of negative R|. null with no losses. Exact decimal as a string (never a float)."
+          },
+          "planned_rr_trades": {
+            "type": "integer"
+          },
+          "average_planned_rr": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Mean planned R:R of trades with a valid target. Exact decimal as a string (never a float)."
+          },
+          "longest_win_streak": {
+            "type": "integer"
+          },
+          "longest_loss_streak": {
+            "type": "integer"
+          },
+          "max_drawdown_r": {
+            "$ref": "#/components/schemas/Drawdown"
+          },
+          "best_trade_r": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TradeRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "worst_trade_r": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TradeRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "money": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MoneySummary"
+            },
+            "description": "One entry per quote currency. Currencies are never added together."
+          }
+        },
+        "required": [
+          "group",
+          "trades",
+          "wins",
+          "losses",
+          "breakevens",
+          "win_rate",
+          "loss_rate",
+          "breakeven_rate",
+          "r_trades",
+          "total_r",
+          "average_r",
+          "average_win_r",
+          "average_loss_r",
+          "expectancy_r",
+          "profit_factor_r",
+          "planned_rr_trades",
+          "average_planned_rr",
+          "longest_win_streak",
+          "longest_loss_streak",
+          "max_drawdown_r",
+          "best_trade_r",
+          "worst_trade_r",
+          "money"
+        ],
+        "additionalProperties": false
+      },
+      "ExcludedTrade": {
+        "type": "object",
+        "properties": {
+          "trade_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "trade_id",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "CurvePoint": {
+        "type": "object",
+        "properties": {
+          "trade_id": {
+            "type": "integer"
+          },
+          "trade_date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+            "description": "Entry time. UTC, ISO 8601, e.g. 2026-03-02T08:15:00Z."
+          },
+          "realised_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+            "description": "Exit time, or entry time for legacy trades with no recorded exit. UTC, ISO 8601, e.g. 2026-03-02T08:15:00Z."
+          },
+          "close_time_known": {
+            "type": "boolean"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "realised_r": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "This trade's realised R. Exact decimal as a string (never a float)."
+          },
+          "cumulative_r": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "description": "Running total of realised R. NOT account equity. Exact decimal as a string (never a float)."
+          }
+        },
+        "required": [
+          "trade_id",
+          "trade_date",
+          "realised_at",
+          "close_time_known",
+          "symbol",
+          "realised_r",
+          "cumulative_r"
+        ],
+        "additionalProperties": false
+      },
+      "AnalyticsMeta": {
+        "type": "object",
+        "properties": {
+          "filters": {
+            "type": "object",
+            "properties": {
+              "instrument_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "strategy": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "session": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "ASIA",
+                  "LONDON",
+                  "NEW_YORK",
+                  "OTHER",
+                  null
+                ]
+              },
+              "start": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date"
+              },
+              "end": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date"
+              }
+            },
+            "required": [
+              "instrument_id",
+              "strategy",
+              "session",
+              "start",
+              "end"
+            ],
+            "additionalProperties": false
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "filters",
+          "notes"
+        ],
+        "additionalProperties": false
+      },
+      "SummaryAnalytics": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "overall": {
+                "$ref": "#/components/schemas/Summary"
+              },
+              "open_trades": {
+                "type": "integer",
+                "description": "Counted, but excluded from realised metrics."
+              },
+              "excluded": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExcludedTrade"
+                },
+                "description": "Closed trades that could not be evaluated, with reasons."
+              },
+              "r_unavailable": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExcludedTrade"
+                },
+                "description": "Closed trades counted, but with no realised R."
+              },
+              "unknown_close_time_trade_ids": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                },
+                "description": "Legacy trades ordered by entry time."
+              }
+            },
+            "required": [
+              "overall",
+              "open_trades",
+              "excluded",
+              "r_unavailable",
+              "unknown_close_time_trade_ids"
+            ],
+            "additionalProperties": false
+          },
+          "meta": {
+            "$ref": "#/components/schemas/AnalyticsMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "GroupedAnalytics": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/AnalyticsMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "CurveAnalytics": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurvePoint"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/AnalyticsMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Stable machine-readable code."
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable explanation."
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Field name -> problem. Present only when useful."
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Personal API token (starts with tl_). Create and revoke tokens on /account."
+      }
+    }
+  }
+}

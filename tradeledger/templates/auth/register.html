@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "macros/forms.html" as f %}
+
+{% block title %}Create an account{% endblock %}
+{% block heading %}Create an account{% endblock %}
+{% block description %}Each account has its own private journal.{% endblock %}
+
+{% block content %}
+<section class="card form-section auth-card" aria-labelledby="register-title">
+    <h2 class="form-section__title" id="register-title">Create your TradeLedger account</h2>
+    {{ f.error_summary(errors, labels) }}
+    <form method="post" action="{{ url_for('main.register') }}" novalidate data-submit-once>
+        {{ csrf_field() }}
+        <div class="form-stack">
+            {{ f.text("email", "Email address", values, errors, labels, type="email", required=True, maxlength=254,
+                      autocomplete="username", hint="Used to sign in. TradeLedger does not send email.") }}
+            {{ f.text("password", "Password", {}, errors, labels, type="password", required=True, maxlength=128,
+                      autocomplete="new-password",
+                      hint="At least 12 characters. A few unrelated words make a strong, memorable password.") }}
+            {{ f.text("confirm_password", "Confirm password", {}, errors, labels, type="password", required=True,
+                      maxlength=128, autocomplete="new-password") }}
+        </div>
+        <div class="form-actions">
+            <button class="button button--primary" type="submit" data-busy-label="Creating…">Create account</button>
+        </div>
+    </form>
+    <p class="muted auth-card__note">Already have an account? <a href="{{ url_for('main.login') }}">Sign in</a>.</p>
+</section>
+{% endblock %}

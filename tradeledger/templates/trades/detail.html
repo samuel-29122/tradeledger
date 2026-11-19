@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% import "macros/ui.html" as ui %}
+
+{% block title %}Trade #{{ trade.id }}{% endblock %}
+{% block heading %}Trade #{{ trade.id }} · {{ trade.symbol }}{% endblock %}
+{% block description %}{{ trade.direction | title }} · entered {{ trade.trade_date | when }}{% endblock %}
+{% block actions %}
+    <a class="button button--secondary" href="{{ url_for('main.edit_trade', trade_id=trade.id) }}">Edit</a>
+    <a class="button button--danger-outline" href="{{ url_for('main.delete_trade', trade_id=trade.id) }}">Delete</a>
+{% endblock %}
+
+{% block content %}
+<p class="back-link"><a class="text-link" href="{{ url_for('main.journal') }}">&larr; Back to the journal</a></p>
+
+<div class="detail-grid">
+    <section class="card" aria-labelledby="trade-info-title">
+        <div class="card__header">
+            <h2 id="trade-info-title">Trade</h2>
+            <div class="badge-row">{{ ui.direction_badge(trade.direction) }} {{ ui.outcome_badge(trade, result) }}</div>
+        </div>
+        <dl class="data-list">
+            <div><dt>Instrument</dt><dd>{{ trade.symbol }} <span class="muted">(quote currency {{ trade.quote_currency }})</span></dd></div>
+            <div><dt>Status</dt><dd>{{ trade.status | title }}</dd></div>
+            <div><dt>Entry time</dt><dd>{{ trade.trade_date | when }}</dd></div>
+            <div><dt>Exit time</dt><dd>
+                {% if trade.status == "OPEN" %}<span class="muted">Not closed yet</span>
+                {% elif trade.closed_at %}{{ trade.closed_at | when }}
+                {% else %}<span class="muted">Not recorded</span>{% endif %}
+            </dd></div>
+            <div><dt>Entry price</dt><dd class="num">{{ trade.entry_price | plain }}</dd></div>
+            <div><dt>Stop-loss</dt><dd class="num">{{ trade.stop_loss | plain }}</dd></div>
+            <div><dt>Take-profit</dt><dd class="num">{{ trade.take_profit | plain }}</dd></div>
+            <div><dt>Exit price</dt><dd class="num">{{ trade.exit_price | plain }}</dd></div>
+            <div><dt>Position size</dt><dd class="num">{{ trade.position_size | plain }}</dd></div>
+            <div><dt>Fees</dt><dd class="num">{{ trade.fees | money(trade.quote_currency) }}</dd></div>
+            <div><dt>Strategy</dt><dd>{{ trade.strategy or "Not recorded" }}</dd></div>
+            <div><dt>Session</dt><dd>{{ (trade.session | replace("_", " ") | title) if trade.session else "Not recorded" }}</dd></div>
+        </dl>
+    </section>
+
+    {% if trade.status == "CLOSED" and result %}
+    <section class="card result-card result-card--{{ result.outcome | lower }}" aria-labelledby="result-title">
+        <div class="card__header">
+            <h2 id="result-title">Result</h2>
+            {{ ui.outcome_badge(trade, result) }}
+        </div>
+        <p class="result-card__headline">
+            {{ ui.signed(result.net_pnl, result.net_pnl | money(trade.quote_currency)) }}
+            <span class="result-card__r">{{ ui.signed(result.realised_r, result.realised_r | r) }}</span>
+        </p>
+        <dl class="data-list">
+            <div><dt>Outcome</dt><dd>{{ result.outcome | title }}</dd></div>
+            <div><dt>Gross P&amp;L <span class="muted">(before fees)</span></dt><dd>{{ ui.signed(result.gross_pnl, result.gross_pnl | money(trade.quote_currency)) }}</dd></div>
+            <div><dt>Fees</dt><dd class="num">{{ result.fees | money(trade.quote_currency) }}</dd></div>
+            <div><dt>Net P&amp;L <span class="muted">(after fees)</span></dt><dd>{{ ui.signed(result.net_pnl, result.net_pnl | money(trade.quote_currency)) }}</dd></div>
+            <div><dt>Initial risk</dt><dd class="num">{{ result.initial_risk | money(trade.quote_currency) }}</dd></div>
+            <div><dt>Planned R:R</dt><dd class="num">{{ result.planned_rr | ratio }}</dd></div>
+            <div><dt>Realised R</dt><dd>{{ ui.signed(result.realised_r, result.realised_r | r) }}</dd></div>
+        </dl>
+        {% if result.r_unavailable_reason %}<p class="notice notice--warning">Realised R is unavailable: {{ result.r_unavailable_reason }}.</p>{% endif %}
+        <p class="result-card__note">Calculated by TradeLedger's analytics engine with exact decimals. Realised R = net P&amp;L ÷ initial risk.</p>
+        {% if not trade.closed_at %}
+        <p class="notice notice--info">The exit time of this trade was never recorded, so in time-ordered analytics (streaks,
+           drawdown, monthly results) it is placed at its entry time. Edit the trade to add the real exit time if you know it.</p>
+        {% endif %}
+    </section>
+    {% elif trade.status == "OPEN" %}
+    <section class="card result-card result-card--open" aria-labelledby="plan-title">
+        <div class="card__header">
+            <h2 id="plan-title">Plan</h2>
+            <span class="badge badge--open">Open</span>
+        </div>
+        <p class="notice notice--info">This trade is still open, so there is no realised result yet. The figures below describe the plan, not an outcome.</p>
+        <dl class="data-list">
+            <div><dt>Planned risk <span class="muted">(if the stop is hit, before fees)</span></dt><dd class="num">{{ plan.initial_risk | money(trade.quote_currency) }}</dd></div>
+            <div><dt>Planned R:R</dt><dd class="num">{{ plan.planned_rr | ratio }}</dd></div>
+        </dl>
+        <a class="button button--secondary" href="{{ url_for('main.edit_trade', trade_id=trade.id) }}">Close this trade</a>
+    </section>
+    {% else %}
+    <section class="card" aria-labelledby="result-title">
+        <h2 id="result-title">Result</h2>
+        <p class="notice notice--warning">The result of this trade could not be calculated from the stored data.</p>
+    </section>
+    {% endif %}
+
+    <section class="card detail-grid__wide" aria-labelledby="notes-title">
+        <h2 id="notes-title">Notes</h2>
+        {% if trade.notes %}<p class="notes">{{ trade.notes }}</p>{% else %}<p class="muted">No notes recorded.</p>{% endif %}
+        <p class="meta">Created {{ trade.created_at | when }} · last updated {{ trade.updated_at | when }}</p>
+    </section>
+</div>
+{% endblock %}

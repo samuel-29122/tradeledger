@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <title>{% block title %}TradeLedger{% endblock %} · TradeLedger</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {# early.js only adds class="js" to <html>, before the page paints, so
+       JavaScript-dependent styles apply without a flash of the no-JS layout. #}
+    <script src="{{ url_for('static', filename='js/early.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+    {% block scripts %}{% endblock %}
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    {% set endpoint = request.endpoint or "" %}
+    {% set current_user = g.get("user") %}
+    {% if current_user %}
+    {% set nav_items = [
+        ("main.index", "Overview", ["main.index"]),
+        ("main.journal", "Trade journal", ["main.journal", "main.trade_detail", "main.edit_trade", "main.delete_trade"]),
+        ("main.new_trade", "Add trade", ["main.new_trade"]),
+        ("main.instruments", "Instruments", ["main.instruments"]),
+        ("main.analytics", "Analytics", ["main.analytics"]),
+        ("main.account", "Account", ["main.account"]),
+        ("main.about", "About", ["main.about"]),
+    ] %}
+    {% else %}
+    {% set nav_items = [("main.login", "Sign in", ["main.login"])]
+        + ([("main.register", "Create account", ["main.register"])] if config.REGISTRATION_ENABLED else [])
+        + [("main.about", "About", ["main.about"])] %}
+    {% endif %}
+
+    <div class="shell">
+        <aside class="sidebar" id="sidebar" data-sidebar aria-label="Main navigation">
+            <div class="sidebar__top">
+                <a class="brand" href="{{ url_for('main.index') if current_user else url_for('main.login') }}">
+                    <span class="brand__mark" aria-hidden="true">TL</span>
+                    <span class="brand__text">
+                        <span class="brand__name">TradeLedger</span>
+                        <span class="brand__tag">Trading journal</span>
+                    </span>
+                </a>
+                <button class="icon-button sidebar__close" type="button" data-nav-close>
+                    <span aria-hidden="true">&times;</span>
+                    <span class="visually-hidden">Close menu</span>
+                </button>
+            </div>
+            <nav>
+                <ul class="nav" role="list">
+                    {% for target, label, matches in nav_items %}
+                    <li>
+                        <a class="nav__link" href="{{ url_for(target) }}"
+                           {% if endpoint in matches %}aria-current="page"{% endif %}>
+                            <span>{{ label }}</span>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+            <div class="sidebar__footer">
+                <span class="env-badge">{{ config.CONFIG_NAME }} mode</span>
+                {% if current_user %}
+                <p class="sidebar__account">Signed in as <strong>{{ current_user.email }}</strong></p>
+                <form method="post" action="{{ url_for('main.logout') }}">
+                    {{ csrf_field() }}
+                    <button class="button button--small button--secondary" type="submit">Sign out</button>
+                </form>
+                {% else %}
+                <p>Sign in to see your journal.</p>
+                {% endif %}
+            </div>
+        </aside>
+        <div class="nav-backdrop" data-nav-backdrop hidden></div>
+
+        <div class="main-area">
+            <header class="topbar">
+                <button class="icon-button nav-toggle" type="button" data-nav-toggle
+                        aria-controls="sidebar" aria-expanded="false">
+                    <span class="nav-toggle__bars" aria-hidden="true"></span>
+                    <span>Menu</span>
+                </button>
+                <div class="topbar__titles">
+                    <h1 class="topbar__title">{% block heading %}TradeLedger{% endblock %}</h1>
+                    {% set description %}{% block description %}{% endblock %}{% endset %}
+                    {% if description | trim %}<p class="topbar__description">{{ description }}</p>{% endif %}
+                </div>
+                <div class="topbar__actions">{% block actions %}{% endblock %}</div>
+            </header>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-stack" role="status" aria-live="polite">
+                {% for category, message in messages %}
+                <div class="flash flash--{{ category }}" data-flash>
+                    <p>{{ message }}</p>
+                    <button class="flash__close" type="button" data-flash-close>
+                        <span aria-hidden="true">&times;</span>
+                        <span class="visually-hidden">Dismiss message</span>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <main id="main" class="content" tabindex="-1">
+                {% block content %}{% endblock %}
+            </main>
+
+            <footer class="site-footer">
+                TradeLedger v{{ config.APP_VERSION }} · Exact decimal calculations · Times shown in UTC
+            </footer>
+        </div>
+    </div>
+</body>
+</html>

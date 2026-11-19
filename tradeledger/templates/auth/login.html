@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% import "macros/forms.html" as f %}
+
+{% block title %}Sign in{% endblock %}
+{% block heading %}Sign in{% endblock %}
+{% block description %}Your journal, instruments and analytics are private to your account.{% endblock %}
+
+{% block content %}
+<section class="card form-section auth-card" aria-labelledby="login-title">
+    <h2 class="form-section__title" id="login-title">Sign in to TradeLedger</h2>
+    {% if error %}
+    <div class="error-summary" role="alert" tabindex="-1" data-error-summary aria-labelledby="login-error">
+        <h2 class="error-summary__title" id="login-error">Sign-in failed</h2>
+        <p>{{ error }}</p>
+    </div>
+    {% endif %}
+    <form method="post" action="{{ url_for('main.login') }}" novalidate data-submit-once>
+        {{ csrf_field() }}
+        {% if next_path %}<input type="hidden" name="next" value="{{ next_path }}">{% endif %}
+        <div class="form-stack">
+            {{ f.text("email", "Email address", values, {}, {}, type="email", required=True, maxlength=254,
+                      autocomplete="username") }}
+            {{ f.text("password", "Password", {}, {}, {}, type="password", required=True, maxlength=128,
+                      autocomplete="current-password") }}
+        </div>
+        <div class="form-actions">
+            <button class="button button--primary" type="submit" data-busy-label="Signing in…">Sign in</button>
+        </div>
+    </form>
+    <p class="muted auth-card__note">
+        {% if config.REGISTRATION_ENABLED %}
+        New here? <a href="{{ url_for('main.register') }}">Create an account</a>.
+        {% else %}
+        Accounts on this server are created by its administrator.
+        {% endif %}
+        Forgotten your password? Ask your administrator for a one-time reset link. TradeLedger does not send email.
+    </p>
+</section>
+{% endblock %}

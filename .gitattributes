@@ -1,0 +1,23 @@
+# Keep line endings exactly as they are in the repository, on every computer.
+#
+# Why: Git for Windows can turn LF line endings into CRLF when it checks files
+# out. Two files in TradeLedger break if that happens:
+#   * the bundled Chart.js file: its SHA-384 hash (Subresource Integrity) is
+#     fixed in tradeledger/config.py, so one changed byte makes the browser
+#     refuse the file and the charts stop drawing;
+#   * shell scripts: a Linux container cannot run a script with CRLF endings
+#     (docker/entrypoint.sh would fail with "bad interpreter").
+
+# Default: text files are stored with LF.
+* text=auto eol=lf
+
+# Third-party, hash-checked code: never touch its bytes.
+tradeledger/static/vendor/** -text
+
+# Shell scripts must stay LF.
+*.sh text eol=lf
+
+# Binary files.
+*.png binary
+*.jpg binary
+*.ico binary

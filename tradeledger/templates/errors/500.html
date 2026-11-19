@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Something went wrong{% endblock %}
+{% block heading %}Something went wrong{% endblock %}
+
+{% block content %}
+<section class="card error-page" aria-labelledby="error-title">
+    <p class="error-code" aria-hidden="true">500</p>
+    <h2 id="error-title">Something went wrong</h2>
+    <p>An unexpected error occurred. It has been logged. Please try again.</p>
+    <div class="error-page__actions">
+        <a class="button button--primary" href="{{ url_for('main.index') }}">Back to the overview</a>
+    </div>
+</section>
+{% endblock %}

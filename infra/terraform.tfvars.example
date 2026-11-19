@@ -1,0 +1,14 @@
+# Copy to production.tfvars (ignored by Git) and fill in.
+# terraform plan -var-file=production.tfvars -out=tfplan
+
+region            = "eu-west-2"
+environment       = "production"
+domain_name       = "journal.example.com"
+certificate_arn   = "arn:aws:acm:eu-west-2:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+github_repository = "your-github-user/tradeledger"
+alert_email       = ""
+
+# Cost controls
+desired_count       = 1
+db_multi_az         = false
+deletion_protection = true

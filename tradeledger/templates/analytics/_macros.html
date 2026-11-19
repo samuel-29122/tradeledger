@@ -1,0 +1,106 @@
+{# Building blocks for the analytics dashboard.
+   Import with {% import "analytics/_macros.html" as dash %} #}
+{% import "macros/ui.html" as ui %}
+
+{# One KPI card. The value text always carries the meaning (sign, "n/a",
+   words); the tone class only adds colour. #}
+{% macro kpi_card(kpi) -%}
+    <div class="kpi kpi--{{ kpi.tone }}" data-kpi="{{ kpi.key }}">
+        <dt class="kpi__label">{{ kpi.label }}</dt>
+        <dd class="kpi__value">{{ kpi.value }}</dd>
+        <dd class="kpi__note">{{ kpi.note }}</dd>
+    </div>
+{%- endmacro %}
+
+{# A chart with its title, explanation, a visible text description and a
+   link to the table holding the same numbers. The canvas has role="img"
+   and an aria-label, but nobody depends on it: the description and the
+   table carry every finding as text. #}
+{% macro chart_figure(name, title, explanation, description, table_id, tall=False) -%}
+    <figure class="chart-card" aria-labelledby="chart-{{ name }}-title" aria-describedby="chart-{{ name }}-desc">
+        <figcaption class="chart-card__head">
+            <h3 class="chart-card__title" id="chart-{{ name }}-title">{{ title }}</h3>
+            <p class="chart-card__explain">{{ explanation }}</p>
+        </figcaption>
+        <div class="chart-card__canvas{% if tall %} chart-card__canvas--tall{% endif %}" data-chart-box>
+            <canvas id="chart-{{ name }}" data-chart="{{ name }}" role="img" aria-label="{{ title }}. {{ description }}"></canvas>
+            <p class="chart-card__fallback" data-chart-fallback hidden></p>
+        </div>
+        <p class="chart-card__summary" id="chart-{{ name }}-desc">{{ description }}</p>
+        <p class="chart-card__table-link"><a class="text-link" href="#{{ table_id }}">Data table<span class="visually-hidden">: {{ title }}</span></a></p>
+    </figure>
+{%- endmacro %}
+
+{# Shared columns for any table of Summary objects. #}
+{% macro summary_cells(s) -%}
+    <td data-label="Closed trades" class="num-col">{{ s.trades }}</td>
+    <td data-label="Won / lost / breakeven" class="num-col">{{ s.wins }} / {{ s.losses }} / {{ s.breakevens }}</td>
+    <td data-label="Win rate" class="num-col">{{ s.win_rate | rate }}</td>
+    <td data-label="Average R" class="num-col">{{ ui.signed(s.average_r, s.average_r | r) }}</td>
+    <td data-label="Expectancy" class="num-col">{{ ui.signed(s.expectancy_r, s.expectancy_r | r) }}</td>
+    <td data-label="Total R" class="num-col">{{ ui.signed(s.total_r, s.total_r | r) }}</td>
+    <td data-label="Profit factor (R)" class="num-col">{{ s.profit_factor_r | ratio }}</td>
+    <td data-label="Max drawdown" class="num-col">{{ s.max_drawdown_r.amount | r_amount }}</td>
+{%- endmacro %}
+
+{% macro summary_head(first) -%}
+    <tr>
+        <th scope="col">{{ first }}</th>
+        <th scope="col" class="num-col">Closed trades</th>
+        <th scope="col" class="num-col">Won / lost / breakeven</th>
+        <th scope="col" class="num-col">Win rate</th>
+        <th scope="col" class="num-col">Average R</th>
+        <th scope="col" class="num-col">Expectancy</th>
+        <th scope="col" class="num-col">Total R</th>
+        <th scope="col" class="num-col">Profit factor (R)</th>
+        <th scope="col" class="num-col">Max drawdown</th>
+    </tr>
+{%- endmacro %}
+
+{# Months or weekdays: rows with no closed trades say so instead of 0. #}
+{% macro period_table(table_id, title, first, rows) -%}
+    <section class="data-table" aria-labelledby="{{ table_id }}-title">
+        <h3 class="data-table__title" id="{{ table_id }}-title">{{ title }}</h3>
+        <div class="table-wrap" id="{{ table_id }}" role="region" aria-labelledby="{{ table_id }}-title" tabindex="0">
+            <table class="table">
+                <caption class="visually-hidden">{{ title }}</caption>
+                <thead>{{ summary_head(first) }}</thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <th scope="row" data-label="{{ first }}">{{ row.label }}</th>
+                        {% if row.summary %}{{ summary_cells(row.summary) }}
+                        {% else %}<td colspan="8" class="muted empty-row">No closed trades</td>{% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{%- endmacro %}
+
+{# Instruments, strategies or sessions, with a small-sample marker. #}
+{% macro group_table(table_id, title, first, rows, small_sample) -%}
+    <section class="data-table" aria-labelledby="{{ table_id }}-title">
+        <h3 class="data-table__title" id="{{ table_id }}-title">{{ title }}</h3>
+        <div class="table-wrap" id="{{ table_id }}" role="region" aria-labelledby="{{ table_id }}-title" tabindex="0">
+            <table class="table">
+                <caption class="visually-hidden">{{ title }}, best total R first</caption>
+                <thead>{{ summary_head(first) }}</thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <th scope="row" data-label="{{ first }}">
+                            <span>{{ row.label }}{% if row.small_sample %} <span class="sample-tag">Small sample</span>{% endif %}</span>
+                        </th>
+                        {{ summary_cells(row.summary) }}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if rows | selectattr("small_sample") | list %}
+        <p class="table-note">"Small sample" marks groups with fewer than {{ small_sample }} closed trades. Their figures can change a lot with one more trade.</p>
+        {% endif %}
+    </section>
+{%- endmacro %}

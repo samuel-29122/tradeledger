@@ -1,0 +1,13 @@
+/* TradeLedger stylesheet entry point.
+   Split into five files so each stays focused and readable:
+     base.css        design tokens (colours, spacing, type), reset, typography
+     layout.css      the application shell: sidebar, top bar, content area
+     components.css  reusable pieces: buttons, forms, tables, badges, cards
+     pages.css       layouts that belong to one page
+     analytics.css   the /analytics dashboard (Phase 6)
+   @import keeps a single <link> in the HTML. */
+@import url("base.css");
+@import url("layout.css");
+@import url("components.css");
+@import url("pages.css");
+@import url("analytics.css");

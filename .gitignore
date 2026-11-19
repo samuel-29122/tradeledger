@@ -1,0 +1,76 @@
+# ---------- Virtual environments ----------
+.venv/
+.venv*/
+venv/
+env/
+
+# ---------- Secrets and local settings ----------
+.env
+*.env
+!.env.example
+secrets/*
+!secrets/README.md
+*.pem
+*.key
+*.p12
+
+# ---------- Databases and backups (may contain your real trades) ----------
+instance/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.bak
+import-audit*.json
+# Your own exports or spreadsheets of trades
+*.csv
+*.xlsx
+
+# ---------- Python caches and build output ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# ---------- Test, coverage and lint output ----------
+.pytest_cache/
+.hypothesis/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.ruff_cache/
+artifacts/
+
+# ---------- JavaScript tooling (only used in CI) ----------
+node_modules/
+chart.js-*.tgz
+/package/
+
+# ---------- Logs ----------
+*.log
+
+# ---------- Editor and OS files ----------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Terraform state, plans and variable files (may contain secrets) ----------
+.terraform/
+.terraform.lock.hcl.bak
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+infra/**/*.tfvars
+!infra/**/*.tfvars.example

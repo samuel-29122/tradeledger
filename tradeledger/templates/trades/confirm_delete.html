@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "macros/ui.html" as ui %}
+
+{% block title %}Delete trade #{{ trade.id }}{% endblock %}
+{% block heading %}Delete trade #{{ trade.id }}?{% endblock %}
+{% block description %}Check this is the right trade. Deleting it cannot be undone.{% endblock %}
+
+{% block content %}
+<section class="card confirm" aria-labelledby="confirm-title">
+    <h2 class="visually-hidden" id="confirm-title">Trade to delete</h2>
+    <div class="notice notice--error">
+        <p><strong>This permanently removes the trade.</strong> It will disappear from the journal and from every
+           performance figure. There is no undo.</p>
+    </div>
+    <dl class="data-list data-list--compact">
+        <div><dt>Trade</dt><dd>#{{ trade.id }} · {{ trade.symbol }} · {{ ui.direction_badge(trade.direction) }} {{ ui.outcome_badge(trade, result) }}</dd></div>
+        <div><dt>Entry time</dt><dd>{{ trade.trade_date | when }}</dd></div>
+        <div><dt>Entry price</dt><dd class="num">{{ trade.entry_price | plain }}</dd></div>
+        {% if result %}<div><dt>Net P&amp;L</dt><dd>{{ ui.signed(result.net_pnl, result.net_pnl | money(trade.quote_currency)) }}</dd></div>{% endif %}
+        <div><dt>Strategy</dt><dd>{{ trade.strategy or "Not recorded" }}</dd></div>
+    </dl>
+    <form method="post" action="{{ url_for('main.delete_trade', trade_id=trade.id) }}" class="confirm__actions" data-submit-once>
+        {{ csrf_field() }}
+        <input type="hidden" name="next" value="{{ back }}">
+        <a class="button button--ghost" href="{{ back }}">Cancel, keep this trade</a>
+        <button class="button button--danger" type="submit" data-busy-label="Deleting…">Delete trade #{{ trade.id }}</button>
+    </form>
+</section>
+{% endblock %}

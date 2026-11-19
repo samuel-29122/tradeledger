@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% import "macros/ui.html" as ui %}
+
+{% block title %}Trade journal{% endblock %}
+{% block heading %}Trade journal{% endblock %}
+{% block description %}Every recorded trade, newest entry first. Money is shown in each instrument's quote currency.{% endblock %}
+{% block actions %}
+    <a class="button button--primary" href="{{ url_for('main.new_trade') }}">Add trade</a>
+{% endblock %}
+
+{% block content %}
+<form class="card filters" method="get" action="{{ url_for('main.journal') }}" role="search" aria-label="Filter trades">
+    <div class="filters__grid">
+        <div class="field field--wide">
+            <label class="field__label" for="filter-q">Search</label>
+            <input class="input" id="filter-q" name="q" type="search" value="{{ raw.q }}" maxlength="100"
+                   aria-describedby="filter-q-hint{% if errors.q %} filter-q-error{% endif %}"
+                   {% if errors.q %}aria-invalid="true"{% endif %}>
+            <p class="field__hint" id="filter-q-hint">Searches the symbol, strategy and notes of every trade, not only this page.</p>
+            {% if errors.q %}<p class="field__error" id="filter-q-error">{{ errors.q }}</p>{% endif %}
+        </div>
+        <div class="field">
+            <label class="field__label" for="filter-instrument">Instrument</label>
+            <select class="input select" id="filter-instrument" name="instrument_id"
+                    {% if errors.instrument_id %}aria-invalid="true" aria-describedby="filter-instrument-error"{% endif %}>
+                <option value="">All instruments</option>
+                {% for i in instruments %}
+                <option value="{{ i.id }}" {% if raw.instrument_id == i.id | string %}selected{% endif %}>{{ i.symbol }}</option>
+                {% endfor %}
+            </select>
+            {% if errors.instrument_id %}<p class="field__error" id="filter-instrument-error">{{ errors.instrument_id }}</p>{% endif %}
+        </div>
+        <div class="field">
+            <label class="field__label" for="filter-status">Status</label>
+            <select class="input select" id="filter-status" name="status"
+                    {% if errors.status %}aria-invalid="true" aria-describedby="filter-status-error"{% endif %}>
+                <option value="">Any status</option>
+                <option value="OPEN" {% if raw.status | upper == "OPEN" %}selected{% endif %}>Open</option>
+                <option value="CLOSED" {% if raw.status | upper == "CLOSED" %}selected{% endif %}>Closed</option>
+            </select>
+            {% if errors.status %}<p class="field__error" id="filter-status-error">{{ errors.status }}</p>{% endif %}
+        </div>
+        <div class="field">
+            <label class="field__label" for="filter-strategy">Strategy</label>
+            <select class="input select" id="filter-strategy" name="strategy">
+                <option value="">All strategies</option>
+                {% for s in strategies %}
+                <option value="{{ s }}" {% if raw.strategy == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label class="field__label" for="filter-start">Entry from</label>
+            <input class="input" id="filter-start" name="start" type="date" value="{{ raw.start }}"
+                   {% if errors.start %}aria-invalid="true" aria-describedby="filter-start-error"{% endif %}>
+            {% if errors.start %}<p class="field__error" id="filter-start-error">{{ errors.start }}</p>{% endif %}
+        </div>
+        <div class="field">
+            <label class="field__label" for="filter-end">Entry to</label>
+            <input class="input" id="filter-end" name="end" type="date" value="{{ raw.end }}"
+                   {% if errors.end %}aria-invalid="true" aria-describedby="filter-end-error"{% endif %}>
+            {% if errors.end %}<p class="field__error" id="filter-end-error">{{ errors.end }}</p>{% endif %}
+        </div>
+    </div>
+    <div class="filters__actions">
+        <button class="button button--primary" type="submit">Apply filters</button>
+        {% if active %}<a class="button button--ghost" href="{{ url_for('main.journal') }}">Reset filters</a>{% endif %}
+    </div>
+</form>
+
+{% if errors %}
+    <p class="notice notice--error" role="alert">The filters could not be applied. Correct the highlighted fields and try again.</p>
+{% elif total == 0 and not active %}
+    {{ ui.empty_state("No trades recorded yet",
+                      "Your journal is empty. Add a trade to start tracking your performance.",
+                      url_for('main.new_trade'), "Add your first trade") }}
+{% elif total == 0 %}
+    {{ ui.empty_state("No trades match these filters",
+                      "Try a wider date range, another instrument or different search text.",
+                      url_for('main.journal'), "Reset filters") }}
+{% elif not rows %}
+    {{ ui.empty_state("This page is empty",
+                      "There are " ~ total ~ " matching trades, but none on page " ~ page ~ ".",
+                      url_for('main.journal', **active), "Go to page 1") }}
+{% else %}
+    {% set first = (page - 1) * per_page + 1 %}
+    {% set last = first + rows | length - 1 %}
+    <p class="results-summary" role="status">
+        Showing {{ first }}–{{ last }} of {{ total }} {{ "trade" if total == 1 else "trades" }}{% if active %} matching your filters{% endif %}.
+    </p>
+
+    <p class="table-scroll-hint" id="journal-scroll-hint">Scroll the table sideways to see every column.</p>
+    <div class="table-wrap" role="region" aria-label="Trades table" aria-describedby="journal-scroll-hint" tabindex="0">
+        <table class="table trade-table">
+            <caption class="visually-hidden">Trades, newest entry first</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Entry time</th>
+                    <th scope="col">Instrument</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="num-col">Entry</th>
+                    <th scope="col" class="num-col">Stop-loss</th>
+                    <th scope="col" class="num-col">Exit</th>
+                    <th scope="col" class="num-col">Size</th>
+                    <th scope="col" class="num-col">Net P&amp;L / realised R</th>
+                    <th scope="col">Strategy</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                {% set t = row.trade %}{% set res = row.result %}
+                <tr class="trade-row trade-row--{{ res.outcome | lower if res else t.status | lower }}">
+                    <td data-label="Entry time">
+                        <span class="cell-stack"><span>{{ t.trade_date | day }}</span><span class="cell-stack__sub">{{ t.trade_date | clock }}</span></span>
+                    </td>
+                    <td data-label="Instrument">
+                        <span class="cell-stack">
+                            <a class="trade-row__symbol" href="{{ url_for('main.trade_detail', trade_id=t.id) }}">{{ t.symbol }}</a>
+                            {{ ui.direction_badge(t.direction) }}
+                        </span>
+                    </td>
+                    <td data-label="Status">{{ ui.outcome_badge(t, res) }}</td>
+                    <td data-label="Entry" class="num-col">{{ t.entry_price | plain }}</td>
+                    <td data-label="Stop-loss" class="num-col">{{ t.stop_loss | plain }}</td>
+                    <td data-label="Exit" class="num-col">{{ t.exit_price | plain }}</td>
+                    <td data-label="Size" class="num-col">{{ t.position_size | plain }}</td>
+                    <td data-label="Net P&amp;L / R" class="num-col">
+                        {% if res %}
+                        <span class="cell-stack cell-stack--end">
+                            {{ ui.signed(res.net_pnl, res.net_pnl | money(t.quote_currency)) }}
+                            <span class="cell-stack__sub">{{ ui.signed(res.realised_r, res.realised_r | r) }}</span>
+                        </span>
+                        {% else %}<span class="muted">No result (open)</span>{% endif %}
+                    </td>
+                    <td data-label="Strategy">{{ t.strategy or "—" }}</td>
+                    <td class="actions-col">
+                        <div class="row-actions">
+                            <a class="button button--small button--secondary" href="{{ url_for('main.trade_detail', trade_id=t.id) }}">View<span class="visually-hidden"> trade #{{ t.id }}</span></a>
+                            <a class="button button--small button--secondary" href="{{ url_for('main.edit_trade', trade_id=t.id, next=here) }}">Edit<span class="visually-hidden"> trade #{{ t.id }}</span></a>
+                            <a class="button button--small button--danger-outline" href="{{ url_for('main.delete_trade', trade_id=t.id, next=here) }}">Delete<span class="visually-hidden"> trade #{{ t.id }}</span></a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {{ ui.pagination(page, total_pages, total, "main.journal", active) }}
+{% endif %}
+{% endblock %}

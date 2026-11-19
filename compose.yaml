@@ -1,0 +1,96 @@
+# TradeLedger local production-style stack (Phase 8).
+#
+#   1. Create the two secret files (once; they are ignored by Git):
+#        mkdir -p secrets
+#        python -c "import secrets; print(secrets.token_hex(32))" > secrets/secret_key.txt
+#        python -c "import secrets; print(secrets.token_urlsafe(24))" > secrets/db_password.txt
+#   2. docker compose up --build -d          start (builds the image)
+#   3. docker compose exec app flask --app tradeledger create-user --email you@example.com
+#   4. open http://localhost:8000 and sign in
+#
+#   docker compose ps                        status and health
+#   docker compose logs -f app               follow the JSON logs
+#   docker compose exec db psql -U tradeledger tradeledger     inspect the database
+#   docker compose down                      stop (data is kept in the db-data volume)
+#   docker compose down -v                   stop AND delete the database (irreversible)
+#
+# Security choices
+#   * PostgreSQL has NO published port: only the app container can reach it,
+#     over the internal "backend" network.
+#   * The app is published on 127.0.0.1 only, not on your LAN.
+#   * Secrets are mounted files (/run/secrets/...), never environment values
+#     in this file, and the app reads them through SECRET_KEY_FILE /
+#     DB_PASSWORD_FILE.
+#   * The app container runs as a non-root user with a read-only root
+#     filesystem, no Linux capabilities and no privilege escalation.
+
+name: tradeledger
+
+services:
+  db:
+    image: postgres:16-alpine   # PostgreSQL 16: the major version Phase 8 was tested against
+    environment:
+      POSTGRES_DB: tradeledger
+      POSTGRES_USER: tradeledger
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tradeledger -d tradeledger"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build: .
+    image: tradeledger:local
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TRADELEDGER_CONFIG: production
+      SECRET_KEY_FILE: /run/secrets/secret_key
+      DB_HOST: db
+      DB_NAME: tradeledger
+      DB_USER: tradeledger
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      DB_SSLMODE: disable             # traffic never leaves the private Docker network
+      TRADELEDGER_TRUSTED_HOSTS: localhost,127.0.0.1
+      TRADELEDGER_MIGRATE_ON_START: "1"
+      TRADELEDGER_REGISTRATION_ENABLED: "0"
+      WEB_CONCURRENCY: "2"
+    secrets:
+      - secret_key
+      - db_password
+    ports:
+      - "127.0.0.1:8000:8000"
+    networks:
+      - backend
+      - frontend
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+networks:
+  backend:
+    internal: true    # no route to the internet or the host
+  frontend: {}
+
+volumes:
+  db-data:
+
+secrets:
+  secret_key:
+    file: ./secrets/secret_key.txt
+  db_password:
+    file: ./secrets/db_password.txt

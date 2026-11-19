@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Form expired{% endblock %}
+{% block heading %}This form could not be accepted{% endblock %}
+
+{% block content %}
+<section class="card error-page" aria-labelledby="error-title">
+    <p class="error-code" aria-hidden="true">400</p>
+    <h2 id="error-title">Form expired or not sent from TradeLedger</h2>
+    <p>Nothing was saved or deleted. This usually means the page was open for a long time or your browser's
+       cookies were cleared. Go back, reload the page and try again.</p>
+    <p class="muted">Every TradeLedger form carries a security token to block forged requests from other websites.
+       This request did not include a valid one.</p>
+    <div class="error-page__actions">
+        <a class="button button--primary" href="{{ url_for('main.index') }}">Back to the overview</a>
+    </div>
+</section>
+{% endblock %}

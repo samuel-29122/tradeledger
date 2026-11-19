@@ -1,0 +1,13 @@
+# Allow-list: send ONLY what the image needs to the Docker build.
+# Everything else (Git history, tests, docs, local databases, .env files,
+# secrets, Terraform) never reaches the build context, so it cannot leak
+# into an image layer.
+*
+!tradeledger/
+!requirements.txt
+!constraints.txt
+!gunicorn.conf.py
+!docker/entrypoint.sh
+**/__pycache__
+**/*.pyc
+tradeledger/static/vendor/chartjs/*.tgz

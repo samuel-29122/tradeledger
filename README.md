@@ -51,7 +51,7 @@ A multi-user trading journal built with Python and Flask. You record trades, wit
 | Database | SQLite (Python's built-in `sqlite3`) or PostgreSQL 16 (psycopg 3 + psycopg_pool) |
 | Security | `cryptography` (Argon2id, AES-GCM), Flask's signed sessions, own CSRF and throttling code |
 | Front end | HTML, CSS and plain JavaScript; **Chart.js 4.5.1** bundled in `tradeledger/static/vendor/chartjs/` |
-| Testing | pytest, Hypothesis, Playwright (Chromium), Node's built-in test runner, Ruff |
+| Testing | pytest, pytest-cov, Playwright (Chromium), Node's built-in test runner, Ruff |
 | Deployment (written, not run) | Gunicorn, Docker, Docker Compose, Terraform (AWS), GitHub Actions |
 
 ## Project structure
@@ -157,7 +157,7 @@ python -m pytest
 ```
 
 **What the tests check:**
-- **Trade maths** against hand-worked examples and random (property-based) inputs.
+- **Trade maths** against hand-worked examples and thousands of seeded random trades (property-style tests written with Python's `random` module, not Hypothesis).
 - **Validation:** every form and API rule.
 - **Database:** constraints and migrations, including a crash in the middle of an upgrade.
 - **User isolation:** a second user tries to reach the first user's data through pages, the API, filters and guessed ids.

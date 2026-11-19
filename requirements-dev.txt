@@ -5,6 +5,7 @@
 # Tests
 pytest==9.1.1
 jsonschema==4.26.0          # validates API responses against the OpenAPI schemas
+PyYAML==6.0.3               # tests/test_deployment_files.py reads the CI workflow and compose.yaml
 
 # Coverage (pytest-cov 7.x needs coverage >= 7.10.6)
 pytest-cov==7.1.0

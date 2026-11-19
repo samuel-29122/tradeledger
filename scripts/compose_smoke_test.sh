@@ -52,7 +52,7 @@ curl -fsS "$BASE/health/live" | grep '"ok"' >/dev/null || fail "liveness"
 curl -fsS "$BASE/health/ready" | grep '"ready"' >/dev/null || fail "readiness"
 
 step "schema created by the entrypoint"
-docker compose exec -T app flask --app tradeledger db-info | grep "Schema version: 3" >/dev/null || fail "schema version"
+docker compose exec -T app flask --app tradeledger db-info | grep "Schema version: 4" >/dev/null || fail "schema version"
 
 step "create an account with the CLI"
 printf '%s\n' "$PASSWORD" | docker compose exec -T app flask --app tradeledger create-user \
@@ -87,8 +87,14 @@ curl -fsS -b "$JAR" "$BASE/analytics" | grep '+1.97R' >/dev/null || fail "analyt
 
 step "API: anonymous 401, token 200"
 [ "$(curl -sS -o /dev/null -w '%{http_code}' "$BASE/api/v1/trades")" = 401 ] || fail "anonymous API call"
-TOKEN=$(csrf /account)
-API_TOKEN=$(curl -fsS -b "$JAR" -c "$JAR" --data-urlencode "csrf_token=$TOKEN" -d name=smoke -d lifetime_days=30 \
+# The account page and its two hidden fields are read in ONE request: every
+# visit issues a new one-time form_nonce (Phase 8.5 double-submit protection).
+ACCOUNT_PAGE=$(curl -fsS -b "$JAR" -c "$JAR" "$BASE/account")
+TOKEN=$(printf '%s\n' "$ACCOUNT_PAGE" | sed -n 's/.*name="csrf_token" value="\([^"]*\)".*/\1/p' | awk 'NR==1')
+NONCE=$(printf '%s\n' "$ACCOUNT_PAGE" | sed -n 's/.*name="form_nonce" value="\([^"]*\)".*/\1/p' | awk 'NR==1')
+[ -n "$NONCE" ] || fail "no form_nonce on the account page"
+API_TOKEN=$(curl -fsS -b "$JAR" -c "$JAR" --data-urlencode "csrf_token=$TOKEN" --data-urlencode "form_nonce=$NONCE" \
+    -d name=smoke -d lifetime_days=30 \
     "$BASE/account/tokens" | sed -n 's/.*id="new-token-value"[^>]*value="\(tl_[^"]*\)".*/\1/p; s/.*value="\(tl_[^"]*\)".*/\1/p' | awk 'NR==1')
 [ -n "$API_TOKEN" ] || fail "no API token issued"
 curl -fsS -H "Authorization: Bearer $API_TOKEN" "$BASE/api/v1/trades" | grep '"total": *1' >/dev/null || fail "API list"
